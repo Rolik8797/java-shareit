@@ -14,4 +14,8 @@ public interface ItemStorage {
     Item updateItem(Item item);
 
     void removeItem(Long id);
+
+    List<Item> getItemsByUserId(Long userId);
+
+    List<Item> searchItemsByDescription(String text);
 }

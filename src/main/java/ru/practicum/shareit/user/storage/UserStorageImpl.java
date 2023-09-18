@@ -39,12 +39,6 @@ public class UserStorageImpl implements UserStorage {
         validateId(user.getId());
         validateEmail(user);
         User patchedUser = users.get(user.getId());
-        if (user.getName() != null && !user.getName().isEmpty()) {
-            patchedUser.setName(user.getName());
-        }
-        if (user.getEmail() != null && !user.getEmail().isEmpty()) {
-            patchedUser.setEmail(user.getEmail());
-        }
         users.put(patchedUser.getId(), patchedUser);
         return users.get(patchedUser.getId());
     }

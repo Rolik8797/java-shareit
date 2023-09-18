@@ -3,17 +3,17 @@ package ru.practicum.shareit.item.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.exception.NotValidException;
 import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.mapper.ItemMapper;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.storage.ItemStorage;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.storage.UserStorage;
 
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -22,18 +22,18 @@ public class ItemServiceImpl implements ItemService {
     private final ItemStorage itemStorage;
     private final UserStorage userStorage;
 
+    private final ItemMapper itemMapper;
+
     @Override
     public ItemDto getItem(Long id) {
         Item item = itemStorage.getItem(id);
-        itemIdValidator(item);
         return itemToItemDto(item);
     }
 
     @Override
     public List<ItemDto> getAllItemsByUserId(Long userId) {
-        return itemStorage.getAllItems()
-                .stream()
-                .filter(i -> Objects.equals(i.getOwner().getId(), userId))
+        List<Item> userItems = itemStorage.getItemsByUserId(userId);
+        return userItems.stream()
                 .map(this::itemToItemDto)
                 .collect(Collectors.toList());
     }
@@ -59,8 +59,7 @@ public class ItemServiceImpl implements ItemService {
     }
 
     public void removeItem(Long id) {
-        Item item = itemStorage.getItem(id);
-        itemIdValidator(item);
+
         itemStorage.removeItem(id);
     }
 
@@ -69,24 +68,12 @@ public class ItemServiceImpl implements ItemService {
         if (text.isBlank()) {
             return new ArrayList<>();
         }
-        return itemStorage.getAllItems()
-                .stream()
-                .filter(i -> i.getDescription().toLowerCase().contains(text.toLowerCase()) && i.getAvailable())
+        List<Item> matchingItems = itemStorage.searchItemsByDescription(text);
+        return matchingItems.stream()
                 .map(this::itemToItemDto)
                 .collect(Collectors.toList());
     }
 
-    private void itemIdValidator(Item item) {
-        if (item == null) {
-            throw new NotFoundException("Item not found");
-        }
-        if (item.getName().isBlank()) {
-            throw new NotValidException("Name can't be blank");
-        }
-        if (item.getDescription().isBlank()) {
-            throw new NotValidException("Description can't be blank");
-        }
-    }
 
     private void itemOwnerCheckValidator(User owner, long userId) {
         if (owner == null) {
@@ -98,42 +85,20 @@ public class ItemServiceImpl implements ItemService {
         if (oldItem.getOwner().getId() != userId) {
             throw new NotFoundException("User is not the owner of this item!");
         }
-        if (itemDto.getName() != null) {
-            oldItem.setName(itemDto.getName());
-        }
-        if (itemDto.getDescription() != null) {
-            oldItem.setDescription(itemDto.getDescription());
-        }
-        if (itemDto.getAvailable() != null) {
-            oldItem.setAvailable(itemDto.getAvailable());
-        }
     }
 
     private void userIdValidator(Long userId) {
-        if (!userStorage.getAll().contains(userStorage.get(userId))) {
+        if (userStorage.get(userId) == null) {
             throw new NotFoundException(String.format("User with id = %d not found.", userId));
         }
     }
 
     private ItemDto itemToItemDto(Item item) {
-        ItemDto itemDto = new ItemDto();
-        itemDto.setId(item.getId());
-        itemDto.setName(item.getName());
-        itemDto.setDescription(item.getDescription());
-        itemDto.setAvailable(item.getAvailable());
-        itemDto.setOwner(item.getOwner());
-        itemDto.setRequest(item.getRequest());
-        return itemDto;
+        return itemMapper.itemToItemDto(item);
     }
 
     private Item itemDtoToItem(ItemDto itemDto) {
-        Item item = new Item();
-        item.setId(itemDto.getId());
-        item.setName(itemDto.getName());
-        item.setDescription(itemDto.getDescription());
-        item.setAvailable(itemDto.getAvailable());
-        item.setRequest(itemDto.getRequest());
-        return item;
+        return itemMapper.itemDtoToItem(itemDto);
     }
 
     private void updateItemFields(Item item, ItemDto itemDto) {
