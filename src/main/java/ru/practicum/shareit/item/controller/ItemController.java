@@ -1,66 +1,114 @@
 package ru.practicum.shareit.item.controller;
 
-import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.AllArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.util.UriComponents;
+import org.springframework.web.util.UriComponentsBuilder;
+import ru.practicum.shareit.item.dto.CommentDto;
 import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.service.ItemService;
+import ru.practicum.shareit.logger.Logger;
 
 import javax.validation.Valid;
-import java.util.Collection;
 import java.util.List;
 
 @RestController
 @RequestMapping("/items")
-@RequiredArgsConstructor
+@AllArgsConstructor
 public class ItemController {
     private final ItemService itemService;
+    private final String host = "localhost";
+    private final String port = "8080";
+    private final String protocol = "http";
     private final String userIdHeader = "X-Sharer-User-Id";
 
-    private static final Logger logger = LoggerFactory.getLogger(ItemController.class);
-
-    @PostMapping()
-    @ResponseStatus(HttpStatus.CREATED)
-    public ItemDto createItem(@Valid @RequestBody ItemDto itemDto, @RequestHeader(userIdHeader) Long userId) {
-        logger.info("Получен POST запрос на создание элемента");
-        return itemService.createItem(itemDto, userId);
+    @PostMapping
+    public ResponseEntity<ItemDto> addItem(@RequestHeader(userIdHeader) long userId, @Valid @RequestBody ItemDto itemDto) {
+        UriComponents uriComponents = UriComponentsBuilder.newInstance()
+                .scheme(protocol)
+                .host(host)
+                .port(port)
+                .path("/items")
+                .build();
+        Logger.logRequest(HttpMethod.POST, uriComponents.toUriString(), itemDto.toString());
+        return ResponseEntity.status(201).body(itemService.addItem(userId, itemDto));
     }
 
-    @PatchMapping("/{itemId}")
-    @ResponseStatus(HttpStatus.OK)
-    public ItemDto updateItem(@RequestBody ItemDto itemDto, @PathVariable Long itemId,
-                              @RequestHeader(userIdHeader) Long userId) {
-        logger.info("Получен PATCH запрос на обновление элемента с  ID: {}", itemId);
-        return itemService.updateItem(itemDto, itemId, userId);
+    @GetMapping("{itemId}")
+    public ResponseEntity<ItemDto> getItem(@PathVariable long itemId, @RequestHeader(userIdHeader) long userId) {
+        UriComponents uriComponents = UriComponentsBuilder.newInstance()
+                .scheme(protocol)
+                .host(host)
+                .port(port)
+                .path("/items/{itemId}")
+                .build();
+        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "пусто");
+        return ResponseEntity.ok().body(itemService.getItemById(itemId, userId));
+    }
+
+    @GetMapping     // Просмотр владельцем списка всех его вещей с указанием названия и описания для каждой
+    public ResponseEntity<List<ItemDto>> getAllItems(@RequestHeader(userIdHeader) long userId) {
+        UriComponents uriComponents = UriComponentsBuilder.newInstance()
+                .scheme(protocol)
+                .host(host)
+                .port(port)
+                .path("/items")
+                .build();
+        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "пусто");
+        return ResponseEntity.ok().body(itemService.getAllItems(userId));
     }
 
     @GetMapping("/search")
-    @ResponseStatus(HttpStatus.OK)
-    public Collection<ItemDto> searchItems(@RequestParam(name = "text") String text) {
-        logger.info("Получен GET запрос на поиск элементов с text: {}", text);
-        return itemService.searchItemsByDescription(text);
+    public ResponseEntity<List<ItemDto>> searchItems(@RequestParam String text) {
+        UriComponents uriComponents = UriComponentsBuilder.newInstance()
+                .scheme(protocol)
+                .host(host)
+                .port(port)
+                .path("/items/")
+                .query("search?text={text}")
+                .build();
+        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "пусто");
+        return ResponseEntity.ok().body(itemService.searchItems(text));
     }
 
-    @DeleteMapping("/{itemId}")
-    @ResponseStatus(HttpStatus.OK)
-    public void removeItem(@PathVariable Long itemId) {
-        logger.info("Получен DELETE запрос на удаление элемента ID: {}", itemId);
-        itemService.removeItem(itemId);
+    @PatchMapping("{itemId}")
+    public ResponseEntity<ItemDto> updateItem(@RequestHeader(userIdHeader) long userId, @PathVariable long itemId, @RequestBody ItemDto itemDto) {
+        UriComponents uriComponents = UriComponentsBuilder.newInstance()
+                .scheme(protocol)
+                .host(host)
+                .port(port)
+                .path("/items/{itemId}")
+                .build();
+        Logger.logRequest(HttpMethod.PATCH, uriComponents.toUriString(), itemDto.toString());
+        return ResponseEntity.ok().body(itemService.updateItem(userId, itemId, itemDto));
     }
 
-    @GetMapping("/{itemId}")
-    @ResponseStatus(HttpStatus.OK)
-    public ItemDto getItem(@PathVariable Long itemId) {
-        logger.info("Получен GET запрос на извлечение элемента с помощью ID: {}", itemId);
-        return itemService.getItem(itemId);
+    @DeleteMapping("{itemId}")
+    public ResponseEntity<Void> removeItem(@RequestHeader(userIdHeader) long userId, @PathVariable long itemId) {
+        itemService.removeItem(userId, itemId);
+        UriComponents uriComponents = UriComponentsBuilder.newInstance()
+                .scheme(protocol)
+                .host(host)
+                .port(port)
+                .path("/items/{itemId}")
+                .build();
+        Logger.logRequest(HttpMethod.DELETE, uriComponents.toUriString(), "пусто");
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
-    @GetMapping()
-    @ResponseStatus(HttpStatus.OK)
-    public List<ItemDto> findAll(@RequestHeader(userIdHeader) Long userId) {
-        logger.info("Получен GET запрос на извлечение всех элементов для пользователя с ID: {}", userId);
-        return itemService.getAllItemsByUserId(userId);
+    @PostMapping("/{itemId}/comment")
+    public ResponseEntity<CommentDto> addComment(@RequestHeader(userIdHeader) long userId, @PathVariable long itemId,
+                                                 @RequestBody @Valid CommentDto commentDto) {
+        UriComponents uriComponents = UriComponentsBuilder.newInstance()
+                .scheme(protocol)
+                .host(host)
+                .port(port)
+                .path("/items/{itemId}/comment")
+                .build();
+        Logger.logRequest(HttpMethod.POST, uriComponents.toUriString(), commentDto.toString());
+        return ResponseEntity.ok().body(itemService.addComment(userId, itemId, commentDto));
     }
 }
