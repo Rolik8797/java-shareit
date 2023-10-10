@@ -1,4 +1,4 @@
-package ru.practicum.shareit.booking.repository;
+package ru.practicum.shareit.booking;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -40,4 +40,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findByItemIdAndStatus(long itemId, Status status, Sort sort);
 
     Optional<List<Booking>> findAllByItemIdAndBookerIdAndStatus(long itemId, long bookerId, Status status, Sort sort);
+
+    List<Booking> findByItemIdAndStatus(long itemId, Status status);
+
 }

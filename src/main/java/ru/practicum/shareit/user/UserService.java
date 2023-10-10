@@ -1,4 +1,4 @@
-package ru.practicum.shareit.user.service;
+package ru.practicum.shareit.user;
 
 import ru.practicum.shareit.exception.DataExistException;
 import ru.practicum.shareit.user.dto.UserDto;
