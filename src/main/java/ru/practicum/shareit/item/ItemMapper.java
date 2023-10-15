@@ -1,23 +1,27 @@
 package ru.practicum.shareit.item;
 
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Component;
-import ru.practicum.shareit.item.dto.ItemDto;
+import org.mapstruct.*;
+import ru.practicum.shareit.booking.dto.BookingShortDto;
+import ru.practicum.shareit.booking.model.Booking;
+import ru.practicum.shareit.item.dto.*;
+import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
 
-@Component
-public class ItemMapper {
-    private final ModelMapper modelMapper;
+@Mapper(componentModel = "spring")
+public interface ItemMapper {
+    @Mapping(source = "request.id", target = "requestId")
+    ItemDtoResponse mapToItemDtoResponse(Item item);
 
-    public ItemMapper() {
-        modelMapper = new ModelMapper();
-    }
+    Item mapToItemFromItemDto(ItemDto itemDto);
 
-    public ItemDto convertToDto(Item item) {
-        return modelMapper.map(item, ItemDto.class);
-    }
+    @Mapping(source = "booker.id", target = "bookerId")
+    BookingShortDto mapToBookingShortDto(Booking booking);
 
-    public Item convertFromDto(ItemDto itemDto) {
-        return modelMapper.map(itemDto, Item.class);
-    }
+    Comment mapToCommentFromCommentDto(CommentDto commentDto);
+
+    @Mapping(source = "author.name", target = "authorName")
+    CommentDtoResponse mapToCommentDtoResponseFromComment(Comment comment);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    Item mapToItemFromItemDtoUpdate(ItemDtoUpdate itemDtoUpdate, @MappingTarget Item item);
 }

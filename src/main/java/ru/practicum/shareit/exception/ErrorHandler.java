@@ -2,50 +2,64 @@ package ru.practicum.shareit.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Objects;
 
-@RestControllerAdvice
+import javax.validation.ConstraintViolationException;
+
 @Slf4j
+@RestControllerAdvice("ru.practicum.shareit")
 public class ErrorHandler {
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler({MethodArgumentNotValidException.class, UserOrItemNotAvailableException.class,
-            InvalidDataException.class, IllegalArgumentException.class})
-    public ErrorResponse handleNotValidArgumentException(Exception e) {
-        log.warn(e.getClass().getSimpleName(), e);
-        String message;
-        if (e instanceof MethodArgumentNotValidException) {
-            MethodArgumentNotValidException eValidation = (MethodArgumentNotValidException) e;
-            message = Objects.requireNonNull(eValidation.getBindingResult().getFieldError()).getDefaultMessage();
-        } else {
-            message = e.getMessage();
-        }
-        return new ErrorResponse(400, "Bad Request", message);
+    @ExceptionHandler(ResponseStatusException.class)
+    private ResponseEntity<String> handleException(ResponseStatusException exception) {
+        log.debug("Получен статус {}", exception.getMessage(), exception);
+        return ResponseEntity
+                .status(exception.getStatus())
+                .body(exception.getMessage());
     }
 
-    @ResponseStatus(HttpStatus.CONFLICT)
-    @ExceptionHandler({DataExistException.class})
-    public ErrorResponse handleDataExistExceptionException(DataExistException e) {
-        log.warn(e.getClass().getSimpleName(), e);
-        return new ErrorResponse(409, "Conflict", e.getMessage());
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    private ResponseEntity<String> handleException(MethodArgumentNotValidException exception) {
+        log.debug("Получен статус 400 BAD_REQUEST {}", exception.getMessage(), exception);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(HttpStatus.BAD_REQUEST + " " + exception.getMessage());
     }
 
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    @ExceptionHandler({UserOrItemNotFoundException.class, AccessException.class})
-    public ErrorResponse handleDataExistExceptionException(RuntimeException e) {
-        log.warn(e.getClass().getSimpleName(), e);
-        return new ErrorResponse(404, "Not Found", e.getMessage());
+    @ExceptionHandler(RuntimeException.class)
+    private ResponseEntity<String> handleException() {
+        log.debug("Получен статус 500 INTERNAL_SERVER_ERROR - нарушение уникального индекса или первичного ключа");
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(HttpStatus.INTERNAL_SERVER_ERROR + " Нарушение уникального индекса или первичного ключа");
     }
 
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler({ArgumentException.class})
-    public ErrorResponse handleArgumentExceptionHandler(RuntimeException e) {
-        log.warn(e.getClass().getSimpleName(), e);
-        return new ErrorResponse(400, "Bad Request", e.getMessage());
+    @ExceptionHandler(StateException.class)
+    private ResponseEntity<StateErrorResponse> handleException(StateException exception) {
+        log.debug("Получен статус 400 BAD_REQUEST {}", exception.getMessage(), exception);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new StateErrorResponse(exception.getMessage()));
+    }
+
+    @ExceptionHandler(ConstraintViolationException.class)
+    private ResponseEntity<String> handleException(ConstraintViolationException exception) {
+        log.debug("Получен статус 400 BAD_REQUEST {}", exception.getMessage(), exception);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(HttpStatus.BAD_REQUEST + " " + exception.getMessage());
+    }
+
+    @ExceptionHandler(Exception.class)
+    private ResponseEntity<String> handleException(Exception exception) {
+        log.debug("Получен статус 500 INTERNAL_SERVER_ERROR {}", exception.getMessage(), exception);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(HttpStatus.INTERNAL_SERVER_ERROR + exception.getMessage());
     }
 }
