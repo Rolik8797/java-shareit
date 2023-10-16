@@ -1,7 +1,8 @@
 package ru.practicum.shareit.booking.dto;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import ru.practicum.shareit.booking.model.Status;
 
 
@@ -11,7 +12,8 @@ import javax.validation.constraints.Min;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
-@Data
+@Getter
+@Setter
 @Builder
 public class BookingDto {
     @NotNull(message = "Поле start обязательно")

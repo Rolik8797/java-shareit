@@ -6,7 +6,6 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +24,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ItemController.class)
-@AutoConfigureMockMvc
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class ItemControllerTest {
     private final ObjectMapper objectMapper;
@@ -57,13 +55,16 @@ public class ItemControllerTest {
 
     @Test
     public void createItem() throws Exception {
+
         when(itemService.createItem(any(ItemDto.class), anyLong())).thenReturn(itemDtoResponse);
+
         mvc.perform(
                         post("/items")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isCreated(),
                         content().json(objectMapper.writeValueAsString(itemDtoResponse))
@@ -73,12 +74,14 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void createItemWithIncorrectUserId() {
+
         mvc.perform(
                         post("/items")
                                 .header("X-Sharer-User-Id", 0)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -88,13 +91,16 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void createItemWithIncorrectName() {
+
         item1.setName("  test name");
+
         mvc.perform(
                         post("/items")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -104,13 +110,16 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void createItemWithIncorrectDescription() {
+
         item1.setDescription("  test description");
+
         mvc.perform(
                         post("/items")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -120,13 +129,16 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void createItemWithIncorrectAvailable() {
+
         item1.setAvailable(null);
+
         mvc.perform(
                         post("/items")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -136,13 +148,16 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void createItemWithIncorrectIdRequest() {
+
         item1.setRequestId(0L);
+
         mvc.perform(
                         post("/items")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -152,8 +167,10 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void updateItem() {
+
         itemDtoResponse.setName(itemDtoUpdate.getName());
         itemDtoResponse.setDescription(itemDtoUpdate.getDescription());
+
         when(itemService.updateItem(anyLong(), anyLong(), any(ItemDtoUpdate.class))).thenReturn(itemDtoResponse);
         mvc.perform(
                         patch("/items/1")
@@ -161,6 +178,7 @@ public class ItemControllerTest {
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(itemDtoResponse))
@@ -170,12 +188,14 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void updateItemWithIncorrectUserId() {
+
         mvc.perform(
                         patch("/items/1")
                                 .header("X-Sharer-User-Id", 0)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -185,12 +205,14 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void updateItemWithIncorrectItemId() {
+
         mvc.perform(
                         patch("/items/0")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -200,13 +222,16 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void updateItemWithIncorrectName() {
+
         itemDtoUpdate.setName("    updated name");
+
         mvc.perform(
                         patch("/items/0")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -216,13 +241,16 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void updateItemWithIncorrectDescription() {
+
         itemDtoUpdate.setDescription("   updated description");
+
         mvc.perform(
                         patch("/items/0")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(item1))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -232,11 +260,14 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getItemById() {
+
         when(itemService.getItemByItemId(anyLong(), anyLong())).thenReturn(itemDtoResponse);
+
         mvc.perform(
                         get("/items/1")
                                 .header("X-Sharer-User-Id", 1))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(itemDtoResponse))
@@ -246,10 +277,12 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getItemByIdWithIncorrectUserId() {
+
         mvc.perform(
                         get("/items/1")
                                 .header("X-Sharer-User-Id", 0))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -259,10 +292,12 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getItemByIncorrectId() {
+
         mvc.perform(
                         get("/items/0")
                                 .header("X-Sharer-User-Id", 1))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -272,7 +307,9 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getPersonalItems() {
+
         var itemListDto = ItemListDto.builder().items(List.of(itemDtoResponse)).build();
+
         when(itemService.getPersonalItems(any(Pageable.class), anyLong())).thenReturn(itemListDto);
         mvc.perform(
                         get("/items")
@@ -288,6 +325,7 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getPersonalItemsWithIncorrectUserId() {
+
         mvc.perform(
                         get("/items")
                                 .param("from", "0")
@@ -302,6 +340,7 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getPersonalItemsWithIncorrectParamFrom() {
+
         mvc.perform(
                         get("/items")
                                 .param("from", "-1")
@@ -316,6 +355,7 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getPersonalItemsWithIncorrectParamSize() {
+
         mvc.perform(
                         get("/items")
                                 .param("from", "0")
@@ -330,7 +370,9 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getFoundItems() {
+
         var itemListDto = ItemListDto.builder().items(List.of(itemDtoResponse)).build();
+
         when(itemService.getFoundItems(any(Pageable.class), anyString())).thenReturn(itemListDto);
         mvc.perform(
                         get("/items/search")
@@ -346,6 +388,7 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getFoundItemsWitchIncorrectParamFrom() {
+
         mvc.perform(
                         get("/items/search")
                                 .param("from", "-1")
@@ -360,6 +403,7 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void getFoundItemsWitchIncorrectParamSize() {
+
         mvc.perform(
                         get("/items/search")
                                 .param("from", "0")
@@ -374,6 +418,7 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void addComment() {
+
         var comment = CommentDto.builder()
                 .text("Nice!")
                 .build();
@@ -383,6 +428,7 @@ public class ItemControllerTest {
                 .text(comment.getText())
                 .created(LocalDateTime.now())
                 .build();
+
         when(itemService.addComment(anyLong(), anyLong(), any(CommentDto.class))).thenReturn(commentDtoResponse);
         mvc.perform(
                         post("/items/1/comment")
@@ -390,7 +436,7 @@ public class ItemControllerTest {
                                 .content(objectMapper.writeValueAsString(comment))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                //then
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(commentDtoResponse))
@@ -400,15 +446,18 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void addCommentWithEmptyText() {
+
         var comment = CommentDto.builder()
                 .text("     ")
                 .build();
+
         mvc.perform(
                         post("/items/1/comment")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(comment))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -418,15 +467,18 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void addCommentWithIncorrectItemId() {
+
         var comment = CommentDto.builder()
                 .text("     ")
                 .build();
+
         mvc.perform(
                         post("/items/0/comment")
                                 .header("X-Sharer-User-Id", 1)
                                 .content(objectMapper.writeValueAsString(comment))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -436,15 +488,18 @@ public class ItemControllerTest {
     @SneakyThrows
     @Test
     public void addCommentWithIncorrectUserId() {
+
         var comment = CommentDto.builder()
                 .text("     ")
                 .build();
+
         mvc.perform(
                         post("/items/1/comment")
                                 .header("X-Sharer-User-Id", 0)
                                 .content(objectMapper.writeValueAsString(comment))
                                 .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );

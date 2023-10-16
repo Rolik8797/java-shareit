@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 import ru.practicum.shareit.booking.BookingRepository;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.model.Status;
 import ru.practicum.shareit.item.dto.*;
 
@@ -21,8 +22,7 @@ import ru.practicum.shareit.user.model.User;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -87,17 +87,48 @@ public class ItemServiceImpl implements ItemService {
         if (!users.existsById(userId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s не существует", userId));
         }
-        List<ItemDtoResponse> personalItems = items.findAllByOwnerIdOrderByIdAsc(pageable, userId).stream()
-                .map(mapper::mapToItemDtoResponse).collect(Collectors.toList());
-        for (ItemDtoResponse item : personalItems) {
-            item.setLastBooking(mapper.mapToBookingShortDto(bookings.findFirstByItemIdAndStartBeforeAndStatusOrderByEndDesc(
-                    item.getId(), LocalDateTime.now(), Status.APPROVED).orElse(null)));
-            item.setNextBooking(mapper.mapToBookingShortDto(bookings
-                    .findFirstByItemIdAndStartAfterAndStatusOrderByStartAsc(
-                            item.getId(), LocalDateTime.now(), Status.APPROVED).orElse(null)
-            ));
+
+        List<Item> personalItems = items.findAllByOwnerIdOrderByIdAsc(pageable, userId);
+
+        Map<Long, Booking> lastBookingMap = new HashMap<>();
+        Map<Long, Booking> nextBookingMap = new HashMap<>();
+
+        List<Comment> allComments = comments.findCommentsForItems(personalItems);
+
+        for (Item item : personalItems) {
+            List<Booking> itemBookings = item.getBookings();
+            if (!itemBookings.isEmpty()) {
+                itemBookings.sort(Comparator.comparing(Booking::getStart));
+                for (int i = 0; i < itemBookings.size(); i++) {
+                    Booking booking = itemBookings.get(i);
+                    if (booking.getStart().isBefore(LocalDateTime.now()) && booking.getStatus() == Status.APPROVED) {
+                        lastBookingMap.put(item.getId(), booking);
+                    }
+                    if (booking.getStart().isAfter(LocalDateTime.now()) && booking.getStatus() == Status.APPROVED) {
+                        nextBookingMap.put(item.getId(), booking);
+                        break;
+                    }
+                }
+            }
+
+            List<Comment> itemComments = allComments.stream()
+                    .filter(comment -> comment.getItem().equals(item))
+                    .collect(Collectors.toList());
+
+            item.setComments(new HashSet<>(itemComments));
         }
-        return ItemListDto.builder().items(personalItems).build();
+
+        List<ItemDtoResponse> itemDtoResponses = new ArrayList<>();
+        for (Item item : personalItems) {
+            Booking lastBooking = lastBookingMap.get(item.getId());
+            Booking nextBooking = nextBookingMap.get(item.getId());
+            ItemDtoResponse itemDtoResponse = mapper.mapToItemDtoResponse(item);
+            itemDtoResponse.setLastBooking(mapper.mapToBookingShortDto(lastBooking));
+            itemDtoResponse.setNextBooking(mapper.mapToBookingShortDto(nextBooking));
+            itemDtoResponses.add(itemDtoResponse);
+        }
+
+        return ItemListDto.builder().items(itemDtoResponses).build();
     }
 
     @Override

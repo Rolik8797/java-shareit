@@ -1,13 +1,15 @@
 package ru.practicum.shareit.item.dto;
 
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
 @Builder
-@Data
+@Getter
+@Setter
 public class ItemDtoUpdate {
     @Pattern(regexp = "^[^ ].*[^ ]$", message = "Некорректное имя")
     @Size(max = 255)

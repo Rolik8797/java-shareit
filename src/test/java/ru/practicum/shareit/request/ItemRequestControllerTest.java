@@ -6,7 +6,6 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.PageRequest;
@@ -28,7 +27,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ItemRequestController.class)
-@AutoConfigureMockMvc
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class ItemRequestControllerTest {
     private final ObjectMapper objectMapper;
@@ -69,6 +67,7 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void createRequest() {
+
         when(itemRequestService.createItemRequest(any(ItemRequestDto.class), anyLong()))
                 .thenReturn(itemRequestDtoResponse);
         mvc.perform(
@@ -78,6 +77,7 @@ public class ItemRequestControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                 ).andDo(print())
                 .andExpectAll(
+
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(itemRequestDtoResponse))
                 );
@@ -86,12 +86,14 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void createRequestWitchIncorrectUserId() {
+
         mvc.perform(
                         post("/requests")
                                 .header(userIdHeader, 0)
                                 .content(objectMapper.writeValueAsString(itemRequestDto))
                                 .contentType(MediaType.APPLICATION_JSON)
                 ).andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -101,13 +103,16 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void createRequestWhenIncorrectDescription() {
+
         itemRequestDto.setDescription(" ");
+
         mvc.perform(
                         post("/requests")
                                 .header(userIdHeader, 0)
                                 .content(objectMapper.writeValueAsString(itemRequestDto))
                                 .contentType(MediaType.APPLICATION_JSON)
                 ).andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -117,10 +122,12 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getPrivateRequests() {
+
         requestDtoResponseWithMD.setItems(List.of(itemDataForRequestDto));
         itemRequestListDto = ItemRequestListDto.builder()
                 .requests(List.of(requestDtoResponseWithMD))
                 .build();
+
         when(itemRequestService.getPrivateRequests(any(PageRequest.class), anyLong())).thenReturn(itemRequestListDto);
         mvc.perform(
                         get("/requests")
@@ -137,6 +144,7 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getPrivateRequestsWithIncorrectUserId() {
+
         mvc.perform(
                         get("/requests")
                                 .header(userIdHeader, 0)
@@ -152,6 +160,7 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getPrivateRequestsWithIncorrectParamFrom() {
+
         mvc.perform(
                         get("/requests")
                                 .header(userIdHeader, 1)
@@ -167,6 +176,7 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getPrivateRequestsWithIncorrectParamSize() {
+
         mvc.perform(
                         get("/requests")
                                 .header(userIdHeader, 1)
@@ -182,10 +192,12 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getOtherRequests() {
+
         requestDtoResponseWithMD.setItems(Collections.singletonList(itemDataForRequestDto));
         itemRequestListDto = ItemRequestListDto.builder()
                 .requests(List.of(requestDtoResponseWithMD))
                 .build();
+
         when(itemRequestService.getOtherRequests(any(PageRequest.class), anyLong())).thenReturn(itemRequestListDto);
         mvc.perform(
                         get("/requests/all")
@@ -202,6 +214,7 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getOtherRequestsWitchIncorrectUserId() {
+
         mvc.perform(
                         get("/requests/all")
                                 .header(userIdHeader, 0)
@@ -209,6 +222,7 @@ public class ItemRequestControllerTest {
                                 .param("size", "2")
                 ).andDo(print())
                 .andExpectAll(
+
                         status().isBadRequest()
                 );
         verify(itemRequestService, times(0)).getOtherRequests(any(PageRequest.class), anyLong());
@@ -217,6 +231,7 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getOtherRequestsWitchIncorrectParamFrom() {
+
         mvc.perform(
                         get("/requests/all")
                                 .header(userIdHeader, 1)
@@ -224,6 +239,7 @@ public class ItemRequestControllerTest {
                                 .param("size", "2")
                 ).andDo(print())
                 .andExpectAll(
+
                         status().isBadRequest()
                 );
         verify(itemRequestService, times(0)).getOtherRequests(any(PageRequest.class), anyLong());
@@ -232,6 +248,7 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getOtherRequestsWitchIncorrectParamSize() {
+
         mvc.perform(
                         get("/requests/all")
                                 .header(userIdHeader, 1)
@@ -239,6 +256,7 @@ public class ItemRequestControllerTest {
                                 .param("size", "24343")
                 ).andDo(print())
                 .andExpectAll(
+
                         status().isBadRequest()
                 );
         verify(itemRequestService, times(0)).getOtherRequests(any(PageRequest.class), anyLong());
@@ -247,7 +265,9 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getItemRequest() {
+
         requestDtoResponseWithMD.setItems(Collections.singletonList(itemDataForRequestDto));
+
         when(itemRequestService.getItemRequest(anyLong(), anyLong())).thenReturn(requestDtoResponseWithMD);
         mvc.perform(
                         get("/requests/1")
@@ -262,11 +282,13 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getItemRequestWitchIncorrectUserId() {
+
         mvc.perform(
                         get("/requests/1")
                                 .header(userIdHeader, 0)
                 ).andDo(print())
                 .andExpectAll(
+
                         status().isBadRequest()
                 );
         verify(itemRequestService, times(0)).getItemRequest(anyLong(), anyLong());
@@ -275,6 +297,7 @@ public class ItemRequestControllerTest {
     @Test
     @SneakyThrows
     public void getItemRequestWitchIncorrectItemRequestId() {
+
         mvc.perform(
                         get("/requests/0")
                                 .header(userIdHeader, 1)

@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
@@ -19,7 +18,6 @@ import ru.practicum.shareit.user.dto.UserDtoUpdate;
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureTestDatabase
 @ActiveProfiles("test")
 @Sql(scripts = {"file:src/main/resources/schema.sql"})
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
@@ -43,47 +41,60 @@ public class UserServiceTest {
 
     @Test
     public void createAndGetUser() {
+
         var savedUser = userService.createUser(user1);
         var findUser = userService.getUserById(1L);
+
         assertThat(savedUser).usingRecursiveComparison().isEqualTo(findUser);
     }
 
     @Test
     public void createUserWithDuplicateEmail() {
+
         userService.createUser(user1);
         assertThatThrownBy(
+
                 () -> userService.createUser(user1))
+
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     public void getNotExistUserById() {
         assertThatThrownBy(
+
                 () -> userService.getUserById(2L))
+
                 .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void getEmptyUsersList() {
+
         var users = userService.getUsers();
+
         assertThat(users.getUsers()).isEmpty();
     }
 
     @Test
     public void getUsersList() {
+
         var savedUser1 = userService.createUser(user1);
         var savedUser2 = userService.createUser(user2);
         var findUsers = userService.getUsers();
+
         assertThat(findUsers.getUsers()).element(0).usingRecursiveComparison().isEqualTo(savedUser1);
         assertThat(findUsers.getUsers()).element(1).usingRecursiveComparison().isEqualTo(savedUser2);
     }
 
     @Test
     public void updateUser() {
+
         updateUser1 = UserDtoUpdate.builder()
                 .name("update name")
                 .email("update-email@test.ru")
                 .build();
+
         userService.createUser(user1);
         userService.updateUser(updateUser1, 1L);
         var updatedUser1 = userService.getUserById(1L);
@@ -93,9 +104,11 @@ public class UserServiceTest {
 
     @Test
     public void updateUserName() {
+
         updateUser1 = UserDtoUpdate.builder()
                 .email("update-email@test.ru")
                 .build();
+
         userService.createUser(user1);
         userService.updateUser(updateUser1, 1L);
         var updatedUser1 = userService.getUserById(1L);
@@ -105,9 +118,11 @@ public class UserServiceTest {
 
     @Test
     public void updateUserEmail() {
+
         updateUser1 = UserDtoUpdate.builder()
                 .name("update name")
                 .build();
+
         userService.createUser(user1);
         userService.updateUser(updateUser1, 1L);
         var updatedUser1 = userService.getUserById(1L);
@@ -118,28 +133,35 @@ public class UserServiceTest {
     @Test
     @Transactional(propagation = Propagation.SUPPORTS)
     public void updateUserDuplicateEmail() {
+
         updateUser1 = UserDtoUpdate.builder()
                 .email(user1.getEmail())
                 .build();
+
         userService.createUser(user1);
         userService.createUser(user2);
         assertThatThrownBy(
                 () -> userService.updateUser(updateUser1, 2L))
+
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     public void deleteUserById() {
         var savedUser = userService.createUser(user1);
+
         userService.deleteUser(savedUser.getId());
+
         assertThatThrownBy(() -> userService.getUserById(savedUser.getId())).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void deleteUserByNotExistId() {
         assertThatThrownBy(
+
                 () -> userService.deleteUser(1L)
         )
+
                 .isInstanceOf(ResponseStatusException.class);
     }
 }

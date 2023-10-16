@@ -6,7 +6,6 @@ import lombok.SneakyThrows;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Pageable;
@@ -31,7 +30,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(BookingController.class)
-@AutoConfigureMockMvc
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class BookingControllerTest {
     private final ObjectMapper objectMapper;
@@ -70,6 +68,7 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void createBooking() {
+
         when(bookingService.createBooking(anyLong(), any(BookingDto.class))).thenReturn(bookingDtoResponse);
         mvc.perform(
                         post("/bookings")
@@ -77,6 +76,7 @@ public class BookingControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("X-Sharer-User-Id", 1))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isCreated(),
                         content().json(objectMapper.writeValueAsString(bookingDtoResponse))
@@ -86,12 +86,14 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void createBookingWithIncorrectBookerId() {
+
         mvc.perform(
                         post("/bookings")
                                 .content(objectMapper.writeValueAsString(bookingDto))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("X-Sharer-User-Id", 0))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -101,13 +103,16 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void createBookingWithIncorrectStart() {
+
         bookingDto.setStart(LocalDateTime.now().minusDays(1));
+
         mvc.perform(
                         post("/bookings")
                                 .content(objectMapper.writeValueAsString(bookingDto))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("X-Sharer-User-Id", 1))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -118,13 +123,16 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void createBookingWithIncorrectEnd() {
+
         bookingDto.setEnd(LocalDateTime.now().minusDays(1));
+
         mvc.perform(
                         post("/bookings")
                                 .content(objectMapper.writeValueAsString(bookingDto))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("X-Sharer-User-Id", 1))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -135,13 +143,16 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void createBookingWithIncorrectItemId() {
+
         bookingDto.setItemId(null);
+
         mvc.perform(
                         post("/bookings")
                                 .content(objectMapper.writeValueAsString(bookingDto))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .header("X-Sharer-User-Id", 1))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -152,13 +163,16 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void approveBooking() {
+
         bookingDtoResponse.setStatus(Status.APPROVED);
+
         when(bookingService.approveBooking(anyLong(), anyLong(), anyBoolean())).thenReturn(bookingDtoResponse);
         mvc.perform(
                         (patch("/bookings/1"))
                                 .header("X-Sharer-User-Id", 1)
                                 .param("approved", "true"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(bookingDtoResponse))
@@ -169,11 +183,13 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void approveBookingWitchIncorrectUserId() {
+
         mvc.perform(
                         (patch("/bookings/1"))
                                 .header("X-Sharer-User-Id", 0)
                                 .param("approved", "true"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -183,11 +199,13 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void approveBookingWitchIncorrectBookingId() {
+
         mvc.perform(
                         (patch("/bookings/0"))
                                 .header("X-Sharer-User-Id", 1)
                                 .param("approved", "true"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -197,11 +215,13 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getBookingByIdForOwnerAndBooker() {
+
         when(bookingService.getBookingByIdForOwnerAndBooker(anyLong(), anyLong())).thenReturn(bookingDtoResponse);
         mvc.perform(
                         get("/bookings/1")
                                 .header("X-Sharer-User-Id", 1))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(bookingDtoResponse))
@@ -211,10 +231,12 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getBookingByIncorrectBookingIdForOwnerAndBooker() {
+
         mvc.perform(
                         get("/bookings/0")
                                 .header("X-Sharer-User-Id", 1))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -224,10 +246,12 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getBookingByIdWithIncorrectUserIdForOwnerAndBooker() {
+
         mvc.perform(
                         get("/bookings/1")
                                 .header("X-Sharer-User-Id", 0))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -237,9 +261,11 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getBookingByIdWithOutUserIdForOwnerAndBooker() {
+
         mvc.perform(
                         get("/bookings/1"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isInternalServerError()
                 );
@@ -249,9 +275,11 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForUser() {
+
         bookingListDto = BookingListDto.builder()
                 .bookings(List.of(bookingDtoResponse))
                 .build();
+
         when(bookingService.getAllBookingsForUser(any(Pageable.class), anyLong(), anyString()))
                 .thenReturn(bookingListDto);
         mvc.perform(
@@ -260,6 +288,7 @@ public class BookingControllerTest {
                                 .param("from", "0")
                                 .param("size", "2"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(bookingListDto))
@@ -269,9 +298,11 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForUserWithIncorrectState() {
+
         bookingListDto = BookingListDto.builder()
                 .bookings(List.of(bookingDtoResponse))
                 .build();
+
         when(bookingService.getAllBookingsForUser(any(Pageable.class), anyLong(), anyString()))
                 .thenThrow(StateException.class);
         mvc.perform(
@@ -281,6 +312,7 @@ public class BookingControllerTest {
                                 .param("size", "2")
                                 .param("state", "qwe"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -289,12 +321,14 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForUserWithIncorrectUserId() {
+
         mvc.perform(
                         get("/bookings")
                                 .header("X-Sharer-User-Id", 0)
                                 .param("from", "0")
                                 .param("size", "2"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -305,12 +339,14 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForUserWithIncorrectParamFrom() {
+
         mvc.perform(
                         get("/bookings")
                                 .header("X-Sharer-User-Id", 1)
                                 .param("from", "-1")
                                 .param("size", "2"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -321,12 +357,14 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForUserWithIncorrectParamSize() {
+
         mvc.perform(
                         get("/bookings")
                                 .header("X-Sharer-User-Id", 1)
                                 .param("from", "0")
                                 .param("size", "10000"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -337,9 +375,11 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForItemsUser() {
+
         bookingListDto = BookingListDto.builder()
                 .bookings(List.of(bookingDtoResponse))
                 .build();
+
         when(bookingService.getAllBookingsForItemsUser(any(Pageable.class), anyLong(), anyString()))
                 .thenReturn(bookingListDto);
         mvc.perform(
@@ -348,6 +388,7 @@ public class BookingControllerTest {
                                 .param("from", "0")
                                 .param("size", "2"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(bookingListDto))
@@ -357,12 +398,14 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForItemsUserWithIncorrectUserId() {
+
         mvc.perform(
                         get("/bookings")
                                 .header("X-Sharer-User-Id", 0)
                                 .param("from", "0")
                                 .param("size", "2"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -373,12 +416,14 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForItemsUserWithIncorrectParamFrom() {
+
         mvc.perform(
                         get("/bookings/owner")
                                 .header("X-Sharer-User-Id", 1)
                                 .param("from", "-1")
                                 .param("size", "2"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -389,12 +434,14 @@ public class BookingControllerTest {
     @Test
     @SneakyThrows
     public void getAllBookingsForItemsUserWithIncorrectParamSize() {
+
         mvc.perform(
                         get("/bookings/owner")
                                 .header("X-Sharer-User-Id", 1)
                                 .param("from", "0")
                                 .param("size", "10000"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );

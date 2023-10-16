@@ -8,6 +8,7 @@ import ru.practicum.shareit.item.model.Item;
 import java.util.List;
 
 public interface ItemRepository extends PagingAndSortingRepository<Item, Long> {
+
     List<Item> findAllByOwnerIdOrderByIdAsc(Pageable pageable, Long ownerId);
 
     List<Item> findAllByNameOrDescriptionContainingIgnoreCaseAndAvailableTrue(Pageable pageable,
@@ -16,8 +17,6 @@ public interface ItemRepository extends PagingAndSortingRepository<Item, Long> {
 
     Boolean existsItemByOwnerId(Long ownerId);
 
-    @Query("SELECT i.id FROM Item AS i " +
-            "JOIN User As u ON i.owner.id=u.id " +
-            "WHERE i.owner.id = ?1")
+    @Query("SELECT i.id FROM Item i WHERE i.owner.id = ?1")
     List<Long> findAllItemIdByOwnerId(Long ownerId);
 }

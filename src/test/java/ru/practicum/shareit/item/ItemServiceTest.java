@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
@@ -28,7 +27,6 @@ import static org.assertj.core.api.Assertions.*;
 
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@AutoConfigureTestDatabase
 @ActiveProfiles("test")
 @Sql(scripts = {"file:src/main/resources/schema.sql"})
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
@@ -79,22 +77,28 @@ public class ItemServiceTest {
 
     @Test
     public void createAndGetItemById() {
+
         userRepository.save(user1);
+
         var savedItem = itemService.createItem(item1Dto, user1.getId());
         var findItem = itemService.getItemByItemId(user1.getId(), savedItem.getId());
+
         assertThat(savedItem).usingRecursiveComparison().ignoringFields("comments").isEqualTo(findItem);
     }
 
     @Test
     public void notExistingUserCreateItem() {
         assertThatThrownBy(
+
                 () -> itemService.createItem(item1Dto, 1L)
         )
+
                 .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void createItemWithItemRequest() {
+
         userRepository.save(user1);
         userRepository.save(user2);
         itemRequestRepository.save(itemRequest1);
@@ -111,18 +115,22 @@ public class ItemServiceTest {
 
     @Test
     public void createItemWithNotExistingItemRequest() {
+
         userRepository.save(user1);
         userRepository.save(user2);
         itemRequestRepository.save(itemRequest1);
         item1Dto.setRequestId(2L);
         assertThatThrownBy(
+
                 () -> itemService.createItem(item1Dto, user1.getId())
         )
+
                 .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void updateItem() {
+
         userRepository.save(user1);
 
         var savedItem = itemService.createItem(item1Dto, user1.getId());
@@ -136,42 +144,53 @@ public class ItemServiceTest {
 
     @Test
     public void updateItemWithNotExistingItemId() {
+
         userRepository.save(user1);
         itemService.createItem(item1Dto, user1.getId());
         assertThatThrownBy(
                 () -> itemService.updateItem(2L, user1.getId(), item1UpdateDto)
         )
+
                 .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void updateItemWithOtherUser() {
+
         userRepository.save(user1);
+
         var savedItem = itemService.createItem(item1Dto, user1.getId());
         assertThatThrownBy(
                 () -> itemService.updateItem(savedItem.getId(), 2L, item1UpdateDto)
         )
+
                 .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void getItemByNotExistingId() {
+
         userRepository.save(user1);
+
         itemService.createItem(item1Dto, user1.getId());
         assertThatThrownBy(
                 () -> itemService.getItemByItemId(user1.getId(), 2L)
+
         ).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     void getItemByIdWithLastAndNextBookings() {
+
         userRepository.save(user1);
         userRepository.save(user2);
         var savedItem = itemService.createItem(item1Dto, user1.getId());
         createLastAndNextBookings(savedItem);
         bookingRepository.save(lastBooking);
         bookingRepository.save(nextBooking);
+
         var findItem = itemService.getItemByItemId(user1.getId(), savedItem.getId());
+
         assertThat(findItem.getId()).isEqualTo(savedItem.getId());
         assertThat(findItem.getName()).isEqualTo(item1Dto.getName());
         assertThat(findItem.getDescription()).isEqualTo(item1Dto.getDescription());
@@ -184,6 +203,7 @@ public class ItemServiceTest {
 
     @Test
     public void getPersonalItems() {
+
         userRepository.save(user1);
         userRepository.save(user2);
         var savedItem1 = itemService.createItem(item1Dto, user1.getId());
@@ -192,13 +212,16 @@ public class ItemServiceTest {
         bookingRepository.save(lastBooking);
         bookingRepository.save(nextBooking);
         var findItem = itemService.getItemByItemId(savedItem1.getId(), user1.getId());
+
         var personalItemsList = itemService.getPersonalItems(PageRequest.of(0, 2), user1.getId());
+
         assertThat(personalItemsList.getItems()).singleElement().usingRecursiveComparison()
                 .ignoringFields("comments").isEqualTo(findItem);
     }
 
     @Test
     public void getPersonalItemsWithNotExistingUser() {
+
         userRepository.save(user1);
         userRepository.save(user2);
         var savedItem1 = itemService.createItem(item1Dto, user1.getId());
@@ -207,19 +230,26 @@ public class ItemServiceTest {
         bookingRepository.save(lastBooking);
         bookingRepository.save(nextBooking);
         assertThatThrownBy(
+
                 () -> itemService.getPersonalItems(PageRequest.of(0, 2), 99L)
+
         ).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void getFoundItems() {
+
         userRepository.save(user1);
         var savedItem1 = itemService.createItem(item1Dto, user1.getId());
         var savedItem2 = itemService.createItem(item2Dto, user1.getId());
+
         var findItems = itemService.getFoundItems(PageRequest.of(0, 2), "em2");
+
         assertThat(findItems.getItems()).singleElement().usingRecursiveComparison()
                 .ignoringFields("comments").isEqualTo(savedItem2);
+
         findItems = itemService.getFoundItems(PageRequest.of(0, 2), "test");
+
         assertThat(findItems.getItems().size()).isEqualTo(2);
         assertThat(findItems.getItems()).element(0).usingRecursiveComparison()
                 .ignoringFields("comments").isEqualTo(savedItem1);
@@ -229,15 +259,19 @@ public class ItemServiceTest {
 
     @Test
     public void getFoundItemsWhenSearchTextIsBlank() {
+
         userRepository.save(user1);
         itemService.createItem(item1Dto, user1.getId());
         itemService.createItem(item2Dto, user1.getId());
+
         var findItems = itemService.getFoundItems(PageRequest.of(0, 2), " ");
+
         assertThat(findItems.getItems()).isEmpty();
     }
 
     @Test
     public void addComment() {
+
         CommentDto commentDto = CommentDto.builder()
                 .text("Nice item, awesome author")
                 .build();
@@ -246,21 +280,26 @@ public class ItemServiceTest {
         var savedItem1 = itemService.createItem(item1Dto, user1.getId());
         createLastAndNextBookings(savedItem1);
         bookingRepository.save(lastBooking);
+
         var savedComment1 = itemService.addComment(savedItem1.getId(), user2.getId(), commentDto);
         var comment1 = commentRepository.findById(savedComment1.getId()).get();
+
         assertThat(savedComment1.getId()).isEqualTo(1L);
         assertThat(savedComment1.getText()).isEqualTo(commentDto.getText());
         assertThat(savedComment1.getCreated()).isBefore(LocalDateTime.now());
         assertThat(savedComment1.getAuthorName()).isEqualTo(user2.getName());
+
         commentDto.setText("Nice item, awesome author2");
         var savedComment2 = itemService.addComment(savedItem1.getId(), user2.getId(), commentDto);
         var comment2 = commentRepository.findById(savedComment2.getId()).get();
+
         assertThat(comment1.equals(comment2)).isFalse();
 
     }
 
     @Test
     public void addCommentFromUserWithNotExistingBooks() {
+
         CommentDto commentDto = CommentDto.builder()
                 .text("Nice item, awesome author")
                 .build();
@@ -268,12 +307,15 @@ public class ItemServiceTest {
         userRepository.save(user2);
         var savedItem1 = itemService.createItem(item1Dto, user1.getId());
         assertThatThrownBy(
+
                 () -> itemService.addComment(savedItem1.getId(), user2.getId(), commentDto)
+
         ).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void addCommentForNotExistingItem() {
+
         CommentDto commentDto = CommentDto.builder()
                 .text("Nice item, awesome author")
                 .build();
@@ -284,12 +326,15 @@ public class ItemServiceTest {
         bookingRepository.save(lastBooking);
         assertThat(lastBooking.equals(nextBooking)).isFalse();
         assertThatThrownBy(
+
                 () -> itemService.addComment(2L, user2.getId(), commentDto)
+
         ).isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void addCommentFromNotExistingUser() {
+
         CommentDto commentDto = CommentDto.builder()
                 .text("Nice item, awesome author")
                 .build();
@@ -299,7 +344,9 @@ public class ItemServiceTest {
         createLastAndNextBookings(savedItem1);
         bookingRepository.save(lastBooking);
         assertThatThrownBy(
+
                 () -> itemService.addComment(savedItem1.getId(), 50L, commentDto)
+
         ).isInstanceOf(ResponseStatusException.class);
     }
 

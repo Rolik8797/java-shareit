@@ -3,6 +3,7 @@ package ru.practicum.shareit.request;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -13,6 +14,7 @@ import ru.practicum.shareit.user.UserRepository;
 import ru.practicum.shareit.user.model.User;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
@@ -36,9 +38,12 @@ public class ItemRequestServiceImpl implements ItemRequestService {
         if (!users.existsById(requesterId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", requesterId));
         }
+
+        List<ItemRequest> itemRequestsWithItems = requests.findAllItemRequestsWithItemsByRequesterId(requesterId);
+
         return ItemRequestListDto.builder()
-                .requests(mapper.mapToRequestDtoResponseWithMD(requests.findAllByRequesterId(pageRequest, requesterId)
-                )).build();
+                .requests(mapper.mapToRequestDtoResponseWithMD(itemRequestsWithItems))
+                .build();
     }
 
     @Override
@@ -64,4 +69,5 @@ public class ItemRequestServiceImpl implements ItemRequestService {
                                 )
                         ));
     }
+
 }

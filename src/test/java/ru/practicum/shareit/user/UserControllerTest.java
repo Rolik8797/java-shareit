@@ -5,7 +5,6 @@ import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -29,7 +28,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(UserController.class)
-@AutoConfigureMockMvc
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class UserControllerTest {
     private final ObjectMapper objectMapper;
@@ -60,10 +58,12 @@ public class UserControllerTest {
     @Test
     public void createUser() throws Exception {
         when(userService.createUser(any(UserDto.class))).thenReturn(userDtoResponse);
+
         mvc.perform(post("/users")
                         .content(objectMapper.writeValueAsString(userDto))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isCreated(),
                         content().json(objectMapper.writeValueAsString(userDtoResponse))
@@ -74,10 +74,12 @@ public class UserControllerTest {
     @Test
     public void createUserDuplicate() throws Exception {
         when(userService.createUser(any(UserDto.class))).thenThrow(DataIntegrityViolationException.class);
+
         mvc.perform(post("/users")
                         .content(objectMapper.writeValueAsString(userDto))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isInternalServerError()
                 );
@@ -92,6 +94,7 @@ public class UserControllerTest {
                         .content(objectMapper.writeValueAsString(userDtoWithIncorrectName))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -108,6 +111,7 @@ public class UserControllerTest {
                         .content(objectMapper.writeValueAsString(userDtoWithIncorrectEmail))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -117,8 +121,10 @@ public class UserControllerTest {
     @Test
     public void getUserById() throws Exception {
         when(userService.getUserById(anyLong())).thenReturn(userDtoResponse);
+
         mvc.perform(get("/users/1"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(userDtoResponse))
@@ -128,8 +134,10 @@ public class UserControllerTest {
     @Test
     public void getUserByNotExistingId() throws Exception {
         when(userService.getUserById(anyLong())).thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND));
+
         mvc.perform(get("/users/1"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isNotFound()
                 );
@@ -138,8 +146,10 @@ public class UserControllerTest {
     @Test
     public void getUserByIncorrectId() throws Exception {
         when(userService.getUserById(anyLong())).thenReturn(userDtoResponse);
+
         mvc.perform(get("/users/-1"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isBadRequest()
                 );
@@ -149,8 +159,10 @@ public class UserControllerTest {
     public void getUsers() throws Exception {
         UserListDto userList = UserListDto.builder().users(List.of(userDtoResponse)).build();
         when(userService.getUsers()).thenReturn(userList);
+
         mvc.perform(get("/users"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(userList))
@@ -160,10 +172,12 @@ public class UserControllerTest {
     @Test
     public void updateUser() throws Exception {
         when(userService.updateUser(any(UserDtoUpdate.class), anyLong())).thenReturn(userDtoResponse);
+
         mvc.perform(patch("/users/1")
                         .content(objectMapper.writeValueAsString(userDtoUpdate))
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isOk(),
                         content().json(objectMapper.writeValueAsString(userDtoResponse))
@@ -174,6 +188,7 @@ public class UserControllerTest {
     public void deleteUser() throws Exception {
         mvc.perform(delete("/users/1"))
                 .andDo(print())
+
                 .andExpectAll(
                         status().isNoContent()
                 );
