@@ -1,19 +1,16 @@
 package ru.practicum.shareit.item;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.PagingAndSortingRepository;
+import org.springframework.data.repository.CrudRepository;
 import ru.practicum.shareit.item.model.Item;
 
 import java.util.List;
 
-public interface ItemRepository extends PagingAndSortingRepository<Item, Long> {
+public interface ItemRepository extends CrudRepository<Item, Long>, JpaSpecificationExecutor<Item> {
 
     List<Item> findAllByOwnerIdOrderByIdAsc(Pageable pageable, Long ownerId);
-
-    List<Item> findAllByNameOrDescriptionContainingIgnoreCaseAndAvailableTrue(Pageable pageable,
-                                                                              String name,
-                                                                              String description);
 
     Boolean existsItemByOwnerId(Long ownerId);
 

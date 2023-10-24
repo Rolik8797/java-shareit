@@ -20,18 +20,18 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class UserServiceImpl implements UserService {
-    private final UserRepository users;
+    private final UserRepository userRepository;
 
-    private final UserMapper mapper;
+    private final UserMapper userMapper;
 
     @Override
     public UserDtoResponse createUser(UserDto user) {
-        return mapper.mapToUserDtoResponse(users.save(mapper.mapToUserFromUserDto(user)));
+        return userMapper.mapToUserDtoResponse(userRepository.save(userMapper.mapToUserFromUserDto(user)));
     }
 
     @Override
     public UserDtoResponse getUserById(Long id) {
-        return mapper.mapToUserDtoResponse(users.findById(id).orElseThrow(
+        return userMapper.mapToUserDtoResponse(userRepository.findById(id).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", id)))
         );
     }
@@ -39,22 +39,22 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserListDto getUsers() {
         return UserListDto.builder()
-                .users(users.findAll().stream().map(mapper::mapToUserDtoResponse).collect(Collectors.toList()))
+                .users(userRepository.findAll().stream().map(userMapper::mapToUserDtoResponse).collect(Collectors.toList()))
                 .build();
     }
 
     @Override
     @Transactional(propagation = Propagation.SUPPORTS)
     public UserDtoResponse updateUser(UserDtoUpdate user, Long userId) {
-        User updatingUser = users.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", userId)));
-        return mapper.mapToUserDtoResponse(users.save(mapper.mapToUserFromUserDtoUpdate(user, updatingUser)));
+        User updatingUser = userRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", userId)));
+        return userMapper.mapToUserDtoResponse(userRepository.save(userMapper.mapToUserFromUserDtoUpdate(user, updatingUser)));
     }
 
     @Override
     public void deleteUser(Long id) {
-        if (!users.existsById(id)) {
+        if (!userRepository.existsById(id)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", id));
         }
-        users.deleteById(id);
+        userRepository.deleteById(id);
     }
 }

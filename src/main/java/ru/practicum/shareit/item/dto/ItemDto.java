@@ -25,4 +25,5 @@ public class ItemDto {
     private Boolean available;
     @Min(1)
     private Long requestId;
+
 }

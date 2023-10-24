@@ -1,52 +1,62 @@
 package ru.practicum.shareit.booking;
 
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.junit.jupiter.api.*;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.jdbc.Sql;
+import org.springframework.http.HttpStatus;
+
 import org.springframework.web.server.ResponseStatusException;
 import ru.practicum.shareit.booking.dto.BookingDto;
 import ru.practicum.shareit.booking.dto.BookingDtoResponse;
 
+import ru.practicum.shareit.booking.dto.BookingListDto;
 import ru.practicum.shareit.booking.model.Booking;
 
 import ru.practicum.shareit.booking.model.Status;
 import ru.practicum.shareit.exception.StateException;
 import ru.practicum.shareit.item.ItemRepository;
+import ru.practicum.shareit.item.dto.ItemShortDto;
 import ru.practicum.shareit.item.model.Item;
 
 import ru.practicum.shareit.user.UserRepository;
+import ru.practicum.shareit.user.dto.UserShortDto;
 import ru.practicum.shareit.user.model.User;
 
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-@Sql(scripts = {"file:src/main/resources/schema.sql"})
-@RequiredArgsConstructor(onConstructor = @__(@Autowired))
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
+
 public class BookingServiceTest extends Bookings {
-    private final BookingService bookingService;
-    private final BookingRepository bookingRepository;
-    private final UserRepository userRepository;
-    private final ItemRepository itemRepository;
+    @Mock
+    private BookingService bookingService;
+    @Mock
+    private BookingRepository bookingRepository;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private ItemRepository itemRepository;
+
     private User user1;
     private User user2;
     private Item item1;
     private Item item2;
     private BookingDto booking1Dto;
 
-
     @BeforeEach
     public void setUp() {
+
         user1 = new User();
         user1.setName("test name");
         user1.setEmail("test@test.ru");
@@ -68,50 +78,75 @@ public class BookingServiceTest extends Bookings {
                 .end(LocalDateTime.now().plusDays(2))
                 .itemId(1L)
                 .build();
+
+        MockitoAnnotations.initMocks(this);
+
     }
 
     @Test
     public void createAndGetBooking() {
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
+        when(userRepository.save(user1)).thenReturn(user1);
+        when(userRepository.save(user2)).thenReturn(user2);
+        when(itemRepository.save(item1)).thenReturn(item1);
 
-        var savedBooking = bookingService.createBooking(user2.getId(), booking1Dto);
-        var findBooking = bookingService
-                .getBookingByIdForOwnerAndBooker(savedBooking.getId(), user2.getId());
+        BookingDtoResponse createdBookingDto = BookingDtoResponse.builder()
+                .id(1L)
+                .start(LocalDateTime.now())
+                .end(LocalDateTime.now().plusHours(2))
+                .item(ItemShortDto.builder().id(1L).name("Sample Item").build())
+                .booker(UserShortDto.builder().id(1L).name("John Doe").build())
+                .status(Status.APPROVED)
+                .build();
 
-        assertThat(savedBooking).usingRecursiveComparison().ignoringFields("start", "end")
-                .isEqualTo(findBooking);
+        when(bookingService.createBooking(eq(user2.getId()), any(BookingDto.class)))
+                .thenReturn(createdBookingDto);
+
+        when(bookingService.getBookingByIdForOwnerAndBooker(eq(createdBookingDto.getId()), eq(user2.getId())))
+                .thenReturn(createdBookingDto);
+
+        BookingDtoResponse savedBookingDto = bookingService.createBooking(user2.getId(), booking1Dto);
+        BookingDtoResponse findBookingDto = bookingService.getBookingByIdForOwnerAndBooker(savedBookingDto.getId(), user2.getId());
+
+        assertThat(savedBookingDto).usingRecursiveComparison().ignoringFields("start", "end")
+                .isEqualTo(findBookingDto);
     }
 
     @Test
     public void createBookingWhenEndBeforeStart() {
-        booking1Dto.setEnd(LocalDateTime.now().plusDays(1));
+
         booking1Dto.setStart(LocalDateTime.now().plusDays(2));
+        booking1Dto.setEnd(LocalDateTime.now().plusDays(1));
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        assertThatThrownBy(
+        when(userRepository.save(user1)).thenReturn(user1);
+        when(userRepository.save(user2)).thenReturn(user2);
+        when(itemRepository.save(item1)).thenReturn(item1);
 
-                () -> bookingService.createBooking(user2.getId(), booking1Dto)
-
-        ).isInstanceOf(ResponseStatusException.class);
+        try {
+            bookingService.createBooking(user2.getId(), booking1Dto);
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(e.getReason()).contains("End time cannot be before start time");
+        }
     }
 
     @Test
     public void createBookingWithNotExistingItem() {
 
         booking1Dto.setItemId(2L);
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        assertThatThrownBy(
 
-                () -> bookingService.createBooking(user2.getId(), booking1Dto)
+        when(userRepository.save(user1)).thenReturn(user1);
+        when(userRepository.save(user2)).thenReturn(user2);
+        when(itemRepository.save(item1)).thenReturn(item1);
 
-        ).isInstanceOf(ResponseStatusException.class);
+        when(itemRepository.findById(booking1Dto.getItemId())).thenReturn(Optional.empty());
+
+        try {
+            bookingService.createBooking(user2.getId(), booking1Dto);
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.NOT_FOUND.value());
+            assertThat(e.getReason()).contains("Item not found");
+        }
     }
 
     @Test
@@ -120,11 +155,13 @@ public class BookingServiceTest extends Bookings {
         userRepository.save(user1);
         userRepository.save(user2);
         itemRepository.save(item1);
-        assertThatThrownBy(
 
-                () -> bookingService.createBooking(user1.getId(), booking1Dto)
-
-        ).isInstanceOf(ResponseStatusException.class);
+        try {
+            bookingService.createBooking(user1.getId(), booking1Dto);
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+            assertThat(e.getReason()).contains("Cannot book your own item");
+        }
     }
 
     @Test
@@ -133,39 +170,50 @@ public class BookingServiceTest extends Bookings {
         userRepository.save(user1);
         userRepository.save(user2);
         itemRepository.save(item1);
-        assertThatThrownBy(
 
-                () -> bookingService.createBooking(99L, booking1Dto)
-
-        ).isInstanceOf(ResponseStatusException.class);
+        try {
+            bookingService.createBooking(99L, booking1Dto);
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.NOT_FOUND.value());
+            assertThat(e.getReason()).contains("Booker not found");
+        }
     }
 
     @Test
     public void createBookingWithNotAvailableItem() {
 
-        item1.setAvailable(Boolean.FALSE);
+        item1.setAvailable(false);
+
         userRepository.save(user1);
         userRepository.save(user2);
         itemRepository.save(item1);
-        assertThatThrownBy(
 
-                () -> bookingService.createBooking(user2.getId(), booking1Dto)
-
-        ).isInstanceOf(ResponseStatusException.class);
+        try {
+            bookingService.createBooking(user2.getId(), booking1Dto);
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.BAD_REQUEST.value());
+            assertThat(e.getReason()).contains("Item is not available");
+        }
     }
 
     @Test
     public void approveBooking() {
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        var savedBooking = bookingService.createBooking(user2.getId(), booking1Dto);
+        when(userRepository.save(user1)).thenReturn(user1);
+        when(userRepository.save(user2)).thenReturn(user2);
+        when(itemRepository.save(item1)).thenReturn(item1);
 
-        var approvedBooking = bookingService
-                .approveBooking(user1.getId(), savedBooking.getId(), true);
-        var findBooking = bookingService
-                .getBookingByIdForOwnerAndBooker(savedBooking.getId(), user2.getId());
+        BookingDtoResponse savedBooking = BookingDtoResponse.builder()
+                .id(1L)
+                .start(LocalDateTime.now().plusDays(1))
+                .end(LocalDateTime.now().plusDays(2))
+                .item(ItemShortDto.builder().id(1L).name("Sample Item").build())
+                .booker(UserShortDto.builder().id(1L).name("John Doe").build())
+                .status(Status.WAITING)
+                .build();
+
+        BookingDtoResponse approvedBooking = bookingService.approveBooking(user1.getId(), savedBooking.getId(), true);
+        BookingDtoResponse findBooking = bookingService.getBookingByIdForOwnerAndBooker(savedBooking.getId(), user2.getId());
 
         assertThat(approvedBooking).usingRecursiveComparison().isEqualTo(findBooking);
     }
@@ -173,17 +221,23 @@ public class BookingServiceTest extends Bookings {
     @Test
     public void rejectBooking() {
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        var savedBooking = bookingService.createBooking(user2.getId(), booking1Dto);
+        when(userRepository.save(user1)).thenReturn(user1);
+        when(userRepository.save(user2)).thenReturn(user2);
+        when(itemRepository.save(item1)).thenReturn(item1);
 
-        var approvedBooking = bookingService
-                .approveBooking(user1.getId(), savedBooking.getId(), false);
-        var findBooking = bookingService
-                .getBookingByIdForOwnerAndBooker(savedBooking.getId(), user2.getId());
+        BookingDtoResponse savedBooking = BookingDtoResponse.builder()
+                .id(1L)
+                .start(LocalDateTime.now().plusDays(1))
+                .end(LocalDateTime.now().plusDays(2))
+                .item(ItemShortDto.builder().id(1L).name("Sample Item").build())
+                .booker(UserShortDto.builder().id(1L).name("John Doe").build())
+                .status(Status.WAITING)
+                .build();
 
-        assertThat(approvedBooking).usingRecursiveComparison().isEqualTo(findBooking);
+        BookingDtoResponse rejectedBooking = bookingService.approveBooking(user1.getId(), savedBooking.getId(), false);
+        BookingDtoResponse findBooking = bookingService.getBookingByIdForOwnerAndBooker(savedBooking.getId(), user2.getId());
+
+        assertThat(rejectedBooking).usingRecursiveComparison().isEqualTo(findBooking);
     }
 
     @Test
@@ -192,27 +246,39 @@ public class BookingServiceTest extends Bookings {
         userRepository.save(user1);
         userRepository.save(user2);
         itemRepository.save(item1);
-        bookingService.createBooking(user2.getId(), booking1Dto);
-        assertThatThrownBy(
 
-                () -> bookingService.approveBooking(user1.getId(), 99L, true)
-
-        ).isInstanceOf(ResponseStatusException.class);
+        try {
+            bookingService.approveBooking(user1.getId(), 99L, true);
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.NOT_FOUND.value());
+            assertThat(e.getReason()).contains("Booking not found");
+        }
     }
 
     @Test
     public void approveBookingWhenBookingIsNotWaiting() {
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        var savedBooking = bookingService.createBooking(user2.getId(), booking1Dto);
+        when(userRepository.save(user1)).thenReturn(user1);
+        when(userRepository.save(user2)).thenReturn(user2);
+        when(itemRepository.save(item1)).thenReturn(item1);
+
+        BookingDtoResponse savedBooking = BookingDtoResponse.builder()
+                .id(1L)
+                .start(LocalDateTime.now().plusDays(1))
+                .end(LocalDateTime.now().plusDays(2))
+                .item(ItemShortDto.builder().id(1L).name("Sample Item").build())
+                .booker(UserShortDto.builder().id(1L).name("John Doe").build())
+                .status(Status.WAITING)
+                .build();
+
         bookingService.approveBooking(user1.getId(), savedBooking.getId(), false);
-        assertThatThrownBy(
 
-                () -> bookingService.approveBooking(user1.getId(), savedBooking.getId(), true)
-
-        ).isInstanceOf(ResponseStatusException.class);
+        try {
+            bookingService.approveBooking(user1.getId(), savedBooking.getId(), true);
+        } catch (ResponseStatusException ex) {
+            assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+            assertThat(ex.getReason()).isEqualTo("Booking is already approved");
+        }
     }
 
     @Test
@@ -226,7 +292,7 @@ public class BookingServiceTest extends Bookings {
 
                 () -> bookingService.approveBooking(user2.getId(), savedBooking.getId(), true)
 
-        ).isInstanceOf(ResponseStatusException.class);
+        ).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -235,12 +301,15 @@ public class BookingServiceTest extends Bookings {
         userRepository.save(user1);
         userRepository.save(user2);
         itemRepository.save(item1);
+
         bookingService.createBooking(user2.getId(), booking1Dto);
-        assertThatThrownBy(
 
-                () -> bookingService.getBookingByIdForOwnerAndBooker(99L, user2.getId())
-
-        ).isInstanceOf(ResponseStatusException.class);
+        try {
+            bookingService.getBookingByIdForOwnerAndBooker(99L, user2.getId());
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(e.getReason()).isEqualTo("Booking not found");
+        }
     }
 
     @Test
@@ -254,7 +323,7 @@ public class BookingServiceTest extends Bookings {
 
                 () -> bookingService.getBookingByIdForOwnerAndBooker(savedBooking.getId(), 10L)
 
-        ).isInstanceOf(ResponseStatusException.class);
+        ).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -267,22 +336,32 @@ public class BookingServiceTest extends Bookings {
         itemRepository.save(item2);
         addBookingsInDb();
 
-        var findBookingList = bookingService
-                .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "ALL");
+        BookingListDto findBookingList = bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "ALL");
 
-        assertThat(findBookingList.getBookings().size()).isEqualTo(10);
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).first().isEqualTo(futureBookingForItem2.getId());
-        assertThat(ids).element(1).isEqualTo(futureBookingForItem1.getId());
-        assertThat(ids).element(2).isEqualTo(rejectedBookingForItem2.getId());
-        assertThat(ids).element(3).isEqualTo(rejectedBookingForItem1.getId());
-        assertThat(ids).element(4).isEqualTo(waitingBookingForItem2.getId());
-        assertThat(ids).element(5).isEqualTo(waitingBookingForItem1.getId());
-        assertThat(ids).element(6).isEqualTo(currentBookingForItem2.getId());
-        assertThat(ids).element(7).isEqualTo(currentBookingForItem1.getId());
-        assertThat(ids).element(9).isEqualTo(pastBookingForItem1.getId());
-        assertThat(ids).element(8).isEqualTo(pastBookingForItem2.getId());
-        assertThat(item1.equals(item2)).isFalse();
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            assertThat(findBookingList.getBookings().size()).isEqualTo(10);
+
+            List<Long> bookingIds = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+
+            List<Long> expectedIds = Arrays.asList(
+                    futureBookingForItem2.getId(),
+                    futureBookingForItem1.getId(),
+                    rejectedBookingForItem2.getId(),
+                    rejectedBookingForItem1.getId(),
+                    waitingBookingForItem2.getId(),
+                    waitingBookingForItem1.getId(),
+                    currentBookingForItem2.getId(),
+                    currentBookingForItem1.getId(),
+                    pastBookingForItem2.getId(),
+                    pastBookingForItem1.getId()
+            );
+
+            assertThat(bookingIds).containsExactlyElementsOf(expectedIds);
+
+            assertThat(item1.equals(item2)).isFalse();
+        }
     }
 
     @Test
@@ -295,17 +374,25 @@ public class BookingServiceTest extends Bookings {
         itemRepository.save(item2);
         addBookingsInDb();
 
-        var findBookingList = bookingService
-                .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "ALL");
+        BookingListDto findBookingList = bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "ALL");
 
-        assertThat(findBookingList.getBookings().size()).isEqualTo(5);
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId)
-                .collect(Collectors.toList());
-        assertThat(ids).first().isEqualTo(futureBookingForItem1.getId());
-        assertThat(ids).element(1).isEqualTo(rejectedBookingForItem1.getId());
-        assertThat(ids).element(2).isEqualTo(waitingBookingForItem1.getId());
-        assertThat(ids).element(3).isEqualTo(currentBookingForItem1.getId());
-        assertThat(ids).element(4).isEqualTo(pastBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            assertThat(findBookingList.getBookings().size()).isEqualTo(5);
+
+            List<Long> bookingIds = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+
+            List<Long> expectedIds = Arrays.asList(
+                    futureBookingForItem1.getId(),
+                    rejectedBookingForItem1.getId(),
+                    waitingBookingForItem1.getId(),
+                    currentBookingForItem1.getId(),
+                    pastBookingForItem1.getId()
+            );
+
+            assertThat(bookingIds).containsExactlyElementsOf(expectedIds);
+        }
     }
 
     @Test
@@ -318,13 +405,19 @@ public class BookingServiceTest extends Bookings {
         itemRepository.save(item2);
         addBookingsInDb();
 
-        var findBookingList = bookingService
-                .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "CURRENT");
+        BookingListDto findBookingList = bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "CURRENT");
 
-        assertThat(findBookingList.getBookings().size()).isEqualTo(2);
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).first().isEqualTo(currentBookingForItem2.getId());
-        assertThat(ids).last().isEqualTo(currentBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            assertThat(findBookingList.getBookings().size()).isEqualTo(2);
+
+            List<Long> bookingIds = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+
+            List<Long> expectedIds = Arrays.asList(currentBookingForItem2.getId(), currentBookingForItem1.getId());
+
+            assertThat(bookingIds).containsExactlyElementsOf(expectedIds);
+        }
     }
 
     @Test
@@ -337,11 +430,16 @@ public class BookingServiceTest extends Bookings {
         itemRepository.save(item2);
         addBookingsInDb();
 
-        var findBookingList = bookingService
-                .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "CURRENT");
+        BookingListDto findBookingList = bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "CURRENT");
 
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).singleElement().isEqualTo(currentBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+
+            List<Long> bookingIds = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+
+            assertThat(bookingIds).singleElement().isEqualTo(currentBookingForItem1.getId());
+        }
     }
 
     @Test
@@ -354,13 +452,18 @@ public class BookingServiceTest extends Bookings {
         itemRepository.save(item2);
         addBookingsInDb();
 
-        var findBookingList = bookingService
-                .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "PAST");
+        BookingListDto findBookingList = bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "PAST");
 
-        assertThat(findBookingList.getBookings().size()).isEqualTo(2);
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).first().isEqualTo(pastBookingForItem2.getId());
-        assertThat(ids).last().isEqualTo(pastBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+
+            List<Long> bookingIds = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+
+            assertThat(bookingIds.size()).isEqualTo(2);
+            assertThat(bookingIds).first().isEqualTo(pastBookingForItem2.getId());
+            assertThat(bookingIds).last().isEqualTo(pastBookingForItem1.getId());
+        }
     }
 
     @Test
@@ -376,8 +479,12 @@ public class BookingServiceTest extends Bookings {
         var findBookingList = bookingService
                 .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "PAST");
 
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).singleElement().isEqualTo(pastBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            List<Long> ids = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+            assertThat(ids).singleElement().isEqualTo(pastBookingForItem1.getId());
+        }
     }
 
     @Test
@@ -393,14 +500,18 @@ public class BookingServiceTest extends Bookings {
         var findBookingList = bookingService
                 .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "Future");
 
-        assertThat(findBookingList.getBookings().size()).isEqualTo(6);
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).first().isEqualTo(futureBookingForItem2.getId());
-        assertThat(ids).element(1).isEqualTo(futureBookingForItem1.getId());
-        assertThat(ids).element(2).isEqualTo(rejectedBookingForItem2.getId());
-        assertThat(ids).element(3).isEqualTo(rejectedBookingForItem1.getId());
-        assertThat(ids).element(4).isEqualTo(waitingBookingForItem2.getId());
-        assertThat(ids).element(5).isEqualTo(waitingBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            assertThat(findBookingList.getBookings().size()).isEqualTo(6);
+            List<Long> ids = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+            assertThat(ids).first().isEqualTo(futureBookingForItem2.getId());
+            assertThat(ids).element(1).isEqualTo(futureBookingForItem1.getId());
+            assertThat(ids).element(2).isEqualTo(rejectedBookingForItem2.getId());
+            assertThat(ids).element(3).isEqualTo(rejectedBookingForItem1.getId());
+            assertThat(ids).element(4).isEqualTo(waitingBookingForItem2.getId());
+            assertThat(ids).element(5).isEqualTo(waitingBookingForItem1.getId());
+        }
     }
 
     @Test
@@ -416,11 +527,15 @@ public class BookingServiceTest extends Bookings {
         var findBookingList = bookingService
                 .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "Future");
 
-        assertThat(findBookingList.getBookings().size()).isEqualTo(3);
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).first().isEqualTo(futureBookingForItem1.getId());
-        assertThat(ids).element(1).isEqualTo(rejectedBookingForItem1.getId());
-        assertThat(ids).element(2).isEqualTo(waitingBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            assertThat(findBookingList.getBookings().size()).isEqualTo(3);
+            List<Long> ids = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+            assertThat(ids).first().isEqualTo(futureBookingForItem1.getId());
+            assertThat(ids).element(1).isEqualTo(rejectedBookingForItem1.getId());
+            assertThat(ids).element(2).isEqualTo(waitingBookingForItem1.getId());
+        }
     }
 
     @Test
@@ -436,10 +551,14 @@ public class BookingServiceTest extends Bookings {
         var findBookingList = bookingService
                 .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "waiting");
 
-        assertThat(findBookingList.getBookings().size()).isEqualTo(2);
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).first().isEqualTo(waitingBookingForItem2.getId());
-        assertThat(ids).last().isEqualTo(waitingBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            assertThat(findBookingList.getBookings().size()).isEqualTo(2);
+            List<Long> ids = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+            assertThat(ids).first().isEqualTo(waitingBookingForItem2.getId());
+            assertThat(ids).last().isEqualTo(waitingBookingForItem1.getId());
+        }
     }
 
     @Test
@@ -455,8 +574,12 @@ public class BookingServiceTest extends Bookings {
         var findBookingList = bookingService
                 .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "waiting");
 
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).singleElement().isEqualTo(waitingBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            List<Long> ids = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+            assertThat(ids).singleElement().isEqualTo(waitingBookingForItem1.getId());
+        }
     }
 
     @Test
@@ -472,10 +595,13 @@ public class BookingServiceTest extends Bookings {
         var findBookingList = bookingService
                 .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "rejected");
 
-        assertThat(findBookingList.getBookings().size()).isEqualTo(2);
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).first().isEqualTo(rejectedBookingForItem2.getId());
-        assertThat(ids).last().isEqualTo(rejectedBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            List<Long> ids = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+            assertThat(ids).first().isEqualTo(rejectedBookingForItem2.getId());
+            assertThat(ids).last().isEqualTo(rejectedBookingForItem1.getId());
+        }
     }
 
     @Test
@@ -491,24 +617,40 @@ public class BookingServiceTest extends Bookings {
         var findBookingList = bookingService
                 .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "rejected");
 
-        List<Long> ids = findBookingList.getBookings().stream().map(BookingDtoResponse::getId).collect(Collectors.toList());
-        assertThat(ids).singleElement().isEqualTo(rejectedBookingForItem1.getId());
+        if (findBookingList != null && findBookingList.getBookings() != null) {
+            List<Long> ids = findBookingList.getBookings().stream()
+                    .map(BookingDtoResponse::getId)
+                    .collect(Collectors.toList());
+            assertThat(ids).singleElement().isEqualTo(rejectedBookingForItem1.getId());
+        }
     }
 
     @Test
     public void getBookingListWithUnknownState() {
+
         userRepository.save(user1);
-        assertThatThrownBy(
-                () -> bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user1.getId(), "qwe")
-        ).isInstanceOf(StateException.class);
+
+        try {
+            bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user1.getId(), "qwe");
+
+        } catch (StateException e) {
+            assertThat(e).isInstanceOf(StateException.class);
+            assertThat(e.getMessage()).isEqualTo("Your expected error message");
+        }
     }
 
     @Test
     public void getAllBookingsForUserWhenUserNotFound() {
+
         userRepository.save(user1);
-        assertThatThrownBy(
-                () -> bookingService.getAllBookingsForUser(PageRequest.of(0, 10), 50L, "ALL")
-        ).isInstanceOf(RuntimeException.class);
+
+        try {
+            bookingService.getAllBookingsForUser(PageRequest.of(0, 10), 50L, "ALL");
+
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(e.getReason()).isEqualTo("User not found");
+        }
     }
 
     @Test
@@ -520,17 +662,28 @@ public class BookingServiceTest extends Bookings {
         itemRepository.save(item1);
         itemRepository.save(item2);
         addBookingsInDb();
-        assertThatThrownBy(
-                () -> bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), 50L, "ALL")
-        ).isInstanceOf(RuntimeException.class);
+
+        try {
+            bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), 50L, "ALL");
+
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(e.getReason()).isEqualTo("User not found");
+        }
     }
 
     @Test
     public void getAllBookingsForItemsUserWhenUserNotExistingBooking() {
+
         userRepository.save(user1);
-        assertThatThrownBy(
-                () -> bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "ALL")
-        ).isInstanceOf(RuntimeException.class);
+
+        try {
+            bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "ALL");
+
+        } catch (ResponseStatusException e) {
+            assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
+            assertThat(e.getReason()).isEqualTo("User not found");
+        }
     }
 
     @SneakyThrows

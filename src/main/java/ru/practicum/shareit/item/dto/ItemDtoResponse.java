@@ -3,6 +3,7 @@ package ru.practicum.shareit.item.dto;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+
 import ru.practicum.shareit.booking.dto.BookingShortDto;
 
 import java.util.Set;
@@ -19,4 +20,5 @@ public class ItemDtoResponse {
     private BookingShortDto lastBooking;
     private BookingShortDto nextBooking;
     private Set<CommentDtoResponse> comments;
+
 }

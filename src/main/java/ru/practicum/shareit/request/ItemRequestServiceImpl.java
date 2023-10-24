@@ -19,50 +19,50 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class ItemRequestServiceImpl implements ItemRequestService {
-    private final ItemRequestRepository requests;
-    private final UserRepository users;
-    private final ItemRequestMapper mapper;
+    private final ItemRequestRepository itemRequestRepository;
+    private final UserRepository userRepository;
+    private final ItemRequestMapper itemRequestMapper;
 
     @Override
     public ItemRequestDtoResponse createItemRequest(ItemRequestDto itemRequestDto, Long requesterId) {
-        User user = users.findById(requesterId).orElseThrow(
+        User user = userRepository.findById(requesterId).orElseThrow(
                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", requesterId)));
-        ItemRequest newRequest = mapper.mapToItemRequest(itemRequestDto);
+        ItemRequest newRequest = itemRequestMapper.mapToItemRequest(itemRequestDto);
         newRequest.setRequester(user);
         newRequest.setCreated(LocalDateTime.now());
-        return mapper.mapToItemRequestDtoResponse(requests.save(newRequest));
+        return itemRequestMapper.mapToItemRequestDtoResponse(itemRequestRepository.save(newRequest));
     }
 
     @Override
     public ItemRequestListDto getPrivateRequests(PageRequest pageRequest, Long requesterId) {
-        if (!users.existsById(requesterId)) {
+        if (!userRepository.existsById(requesterId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", requesterId));
         }
 
-        List<ItemRequest> itemRequestsWithItems = requests.findAllItemRequestsWithItemsByRequesterId(requesterId);
+        List<ItemRequest> itemRequestsWithItems = itemRequestRepository.findAllItemRequestsWithItemsByRequesterId(requesterId);
 
         return ItemRequestListDto.builder()
-                .requests(mapper.mapToRequestDtoResponseWithMD(itemRequestsWithItems))
+                .requests(itemRequestMapper.mapToRequestDtoResponseWithMD(itemRequestsWithItems))
                 .build();
     }
 
     @Override
     public ItemRequestListDto getOtherRequests(PageRequest pageRequest, Long requesterId) {
-        if (!users.existsById(requesterId)) {
+        if (!userRepository.existsById(requesterId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", requesterId));
         }
         return ItemRequestListDto.builder()
-                .requests(mapper.mapToRequestDtoResponseWithMD(requests.findAllByRequesterIdNot(pageRequest, requesterId)
+                .requests(itemRequestMapper.mapToRequestDtoResponseWithMD(itemRequestRepository.findAllByRequesterIdNot(pageRequest, requesterId)
                 )).build();
     }
 
     @Override
     public RequestDtoResponseWithMD getItemRequest(Long userId, Long requestId) {
-        if (!users.existsById(userId)) {
+        if (!userRepository.existsById(userId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", userId));
         }
-        return mapper.mapToRequestDtoResponseWithMD(
-                requests.findById(requestId)
+        return itemRequestMapper.mapToRequestDtoResponseWithMD(
+                itemRequestRepository.findById(requestId)
                         .orElseThrow(
                                 () -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                                         String.format("Запроса с id=%s нет", requestId)

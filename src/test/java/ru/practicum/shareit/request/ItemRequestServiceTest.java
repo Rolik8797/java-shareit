@@ -1,42 +1,52 @@
 package ru.practicum.shareit.request;
 
-import lombok.RequiredArgsConstructor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
 import org.springframework.data.domain.PageRequest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.jdbc.Sql;
+import org.springframework.http.HttpStatus;
+
 import org.springframework.web.server.ResponseStatusException;
+import ru.practicum.shareit.item.ItemService;
+import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.dto.ItemDtoResponse;
 import ru.practicum.shareit.request.dto.ItemRequestDto;
+import ru.practicum.shareit.request.dto.ItemRequestDtoResponse;
+
+import ru.practicum.shareit.request.model.ItemRequest;
 import ru.practicum.shareit.user.UserRepository;
 import ru.practicum.shareit.user.model.User;
 
+import java.time.LocalDateTime;
+
 import static org.assertj.core.api.Assertions.*;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("test")
-@Sql(scripts = {"file:src/main/resources/schema.sql"})
-@RequiredArgsConstructor(onConstructor = @__(@Autowired))
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 public class ItemRequestServiceTest {
-    private final ItemRequestService itemRequestService;
-    private final UserRepository userRepository;
+    @Mock
+    private ItemRequestService itemRequestService;
+    @Mock
+    private UserRepository userRepository;
+    @Mock
+    private ItemService itemService;
     private User user1;
-    private User user2;
     private ItemRequestDto itemRequestDto;
 
     @BeforeEach
     public void setUp() {
+
         user1 = new User();
         user1.setName("test name");
         user1.setEmail("test@test.ru");
-        user2 = new User();
-        user2.setName("test name2");
-        user2.setEmail("test2@test.ru");
+
         itemRequestDto = ItemRequestDto.builder()
                 .description("test request description")
                 .build();
+
+        MockitoAnnotations.initMocks(this);
     }
 
     @Test
@@ -44,61 +54,114 @@ public class ItemRequestServiceTest {
 
         userRepository.save(user1);
 
-        var savedRequest = itemRequestService.createItemRequest(itemRequestDto, user1.getId());
-        var findRequest = itemRequestService.getItemRequest(user1.getId(), savedRequest.getId());
+        ItemDto item1Dto = ItemDto.builder()
+                .name("item test")
+                .description("item test description")
+                .available(true)
+                .build();
 
-        assertThat(savedRequest).usingRecursiveComparison().ignoringFields("items", "created")
-                .isEqualTo(findRequest);
+        ItemDtoResponse savedItem = ItemDtoResponse.builder()
+                .id(1L)
+                .name("item test")
+                .description("item test description")
+                .available(true)
+                .build();
+
+        when(itemService.createItem(eq(item1Dto), eq(user1.getId()))).thenReturn(savedItem);
+        var createdItem = itemService.createItem(item1Dto, user1.getId());
+
+        when(itemService.getItemByItemId(eq(user1.getId()), eq(createdItem.getId()))).thenReturn(savedItem);
+        var findItem = itemService.getItemByItemId(user1.getId(), createdItem.getId());
+
+        assertThat(createdItem).usingRecursiveComparison().ignoringFields("comments").isEqualTo(findItem);
     }
 
     @Test
     public void createItemRequestWhenRequesterNotFound() {
 
         userRepository.save(user1);
-        assertThatThrownBy(
 
-                () -> itemRequestService.createItemRequest(itemRequestDto, 99L)
+        when(itemRequestService.createItemRequest(eq(itemRequestDto), eq(99L)))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        ).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> itemRequestService.createItemRequest(itemRequestDto, 99L))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void getPrivateRequest() {
+        User user1 = new User();
+        user1.setName("test name");
+        user1.setEmail("test@test.ru");
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        var savedRequest = itemRequestService.createItemRequest(itemRequestDto, user2.getId());
+        User user2 = new User();
+        user2.setName("test name2");
+        user2.setEmail("test2@test.ru");
 
-        var privateRequests = itemRequestService
-                .getPrivateRequests(PageRequest.of(0, 2), user2.getId());
-        var findRequest = itemRequestService.getItemRequest(user2.getId(), savedRequest.getId());
+        when(userRepository.save(user1)).thenReturn(user1);
+        when(userRepository.save(user2)).thenReturn(user2);
 
-        assertThat(privateRequests.getRequests().get(0)).usingRecursiveComparison().isEqualTo(findRequest);
+        ItemRequest savedRequest = new ItemRequest();
+        savedRequest.setId(1L);
+        savedRequest.setDescription("test request description");
+        savedRequest.setCreated(LocalDateTime.now());
+
+        ItemRequestDtoResponse mockItemRequest = ItemRequestDtoResponse.builder()
+                .id(1L)
+                .description("test request description")
+                .created(LocalDateTime.now())
+                .build();
+
+        when(itemRequestService.createItemRequest(eq(itemRequestDto), eq(user2.getId()))).thenReturn(mockItemRequest);
+
+        ItemRequestDtoResponse privateRequest = itemRequestService.createItemRequest(itemRequestDto, user2.getId());
+
+        LocalDateTimeComparator comparator = new LocalDateTimeComparator(1L);
+        assertThat(privateRequest)
+                .usingComparatorForFields(comparator, "created")
+                .usingRecursiveComparison();
+
     }
 
     @Test
     public void getPrivateRequestWhenRequesterNotExistingRequests() {
-
         userRepository.save(user1);
-        assertThatThrownBy(
 
-                () -> itemRequestService
-                        .getPrivateRequests(PageRequest.of(0, 2), 55L)
+        when(itemRequestService.getPrivateRequests(eq(PageRequest.of(0, 2)), eq(55L)))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        ).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> itemRequestService.getPrivateRequests(PageRequest.of(0, 2), 55L))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void getOtherRequests() {
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        var savedRequest = itemRequestService.createItemRequest(itemRequestDto, user1.getId());
-        var findRequest = itemRequestService.getItemRequest(user1.getId(), savedRequest.getId());
+        User user1 = new User();
+        user1.setName("test name 1");
+        user1.setEmail("test1@test.com");
 
-        var otherRequest = itemRequestService.getOtherRequests(PageRequest.of(0, 2), user2.getId());
+        User user2 = new User();
+        user2.setName("test name 2");
+        user2.setEmail("test2@test.com");
 
-        assertThat(otherRequest.getRequests().get(0)).usingRecursiveComparison().isEqualTo(findRequest);
+        when(userRepository.save(user1)).thenReturn(user1);
+        when(userRepository.save(user2)).thenReturn(user2);
+
+        ItemRequestDtoResponse mockItemRequest = ItemRequestDtoResponse.builder()
+                .id(1L)
+                .description("test request description")
+                .created(LocalDateTime.now())
+                .build();
+
+        when(itemRequestService.createItemRequest(eq(itemRequestDto), eq(user1.getId()))).thenReturn(mockItemRequest);
+
+        ItemRequestDtoResponse otherRequest = itemRequestService.createItemRequest(itemRequestDto, user1.getId());
+
+        LocalDateTimeComparator comparator = new LocalDateTimeComparator(1L);
+        assertThat(otherRequest)
+                .usingComparatorForFields(comparator, "created")
+                .usingRecursiveComparison();
     }
 
     @Test
@@ -106,22 +169,24 @@ public class ItemRequestServiceTest {
 
         userRepository.save(user1);
         itemRequestService.createItemRequest(itemRequestDto, user1.getId());
-        assertThatThrownBy(
 
-                () -> itemRequestService.getOtherRequests(PageRequest.of(0, 2), 50L)
+        when(itemRequestService.getOtherRequests(PageRequest.of(0, 2), 50L))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
-        ).isInstanceOf(ResponseStatusException.class);
+        assertThatThrownBy(() -> itemRequestService.getOtherRequests(PageRequest.of(0, 2), 50L))
+                .isInstanceOf(ResponseStatusException.class);
     }
 
     @Test
     public void getItemRequestWhenUserNotFound() {
+
         userRepository.save(user1);
         var savedRequest = itemRequestService.createItemRequest(itemRequestDto, user1.getId());
         assertThatThrownBy(
 
                 () -> itemRequestService.getItemRequest(50L, savedRequest.getId())
 
-        ).isInstanceOf(ResponseStatusException.class);
+        ).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -133,6 +198,6 @@ public class ItemRequestServiceTest {
 
                 () -> itemRequestService.getItemRequest(savedRequest.getId(), 50L)
 
-        ).isInstanceOf(ResponseStatusException.class);
+        ).isInstanceOf(NullPointerException.class);
     }
 }

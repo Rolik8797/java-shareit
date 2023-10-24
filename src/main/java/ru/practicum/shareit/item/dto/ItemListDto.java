@@ -11,4 +11,8 @@ import java.util.List;
 public class ItemListDto {
     @JsonValue
     private List<ItemDtoResponse> items;
+
+    public ItemListDto(List<ItemDtoResponse> items) {
+        this.items = items;
+    }
 }
