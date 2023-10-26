@@ -1,19 +1,27 @@
 package ru.practicum.shareit.item;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.JpaRepository;
+
 import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.CrudRepository;
+
 import ru.practicum.shareit.item.model.Item;
 
 import java.util.List;
 
-public interface ItemRepository extends CrudRepository<Item, Long>, JpaSpecificationExecutor<Item> {
+public interface ItemRepository extends JpaRepository<Item, Long> {
+    Page<Item> findByOwnerIdOrderByIdAsc(Long ownerId, Pageable pageable);
 
-    List<Item> findAllByOwnerIdOrderByIdAsc(Pageable pageable, Long ownerId);
+    List<Item> findByRequestIdIn(List<Long> ids);
 
-    Boolean existsItemByOwnerId(Long ownerId);
+    List<Item> findByRequestId(Long requestId);
 
-    @Query("SELECT i.id FROM Item i WHERE i.owner.id = ?1")
-    List<Long> findAllItemIdByOwnerId(Long ownerId);
+    @Query("SELECT i " +
+            "FROM Item i " +
+            "WHERE (UPPER(i.name) LIKE UPPER(CONCAT('%', ?1, '%') ) " +
+            "OR UPPER(i.description) LIKE UPPER(CONCAT('%', ?1, '%'))) " +
+            "AND i.available = true")
+    Page<Item> search(String text, Pageable pageable);
+
 }

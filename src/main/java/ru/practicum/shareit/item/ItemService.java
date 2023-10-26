@@ -2,23 +2,28 @@ package ru.practicum.shareit.item;
 
 import org.springframework.data.domain.Pageable;
 import ru.practicum.shareit.item.dto.CommentDto;
-import ru.practicum.shareit.item.dto.CommentDtoResponse;
+import ru.practicum.shareit.item.dto.CommentRequestDto;
 import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.item.dto.ItemDtoResponse;
-import ru.practicum.shareit.item.dto.ItemDtoUpdate;
-import ru.practicum.shareit.item.dto.ItemListDto;
+
+import ru.practicum.shareit.item.dto.ItemExtendedDto;
+import ru.practicum.shareit.item.model.Item;
+
+import java.util.List;
 
 public interface ItemService {
+    List<ItemExtendedDto> getPersonalItems(Long userId, Pageable pageable);
 
-    ItemDtoResponse createItem(ItemDto itemDto, Long userId);
+    ItemExtendedDto getById(Long userId, Long id);
 
-    ItemDtoResponse updateItem(Long itemId, Long userId, ItemDtoUpdate itemDto);
+    ItemDto createItem(Long userId, ItemDto itemDto);
 
-    ItemDtoResponse getItemByItemId(Long userId, Long itemId);
+    ItemDto updateItem(Long userId, Long id, ItemDto itemDto);
 
-    ItemListDto getPersonalItems(Pageable pageable, Long userId);
+    void delete(Long id);
 
-    ItemListDto getFoundItems(Pageable pageable, String text);
+    List<ItemDto> getFoundItems(String text, Pageable pageable);
 
-    CommentDtoResponse addComment(Long itemId, Long userId, CommentDto commentDto);
+    CommentDto addComment(Long userId, Long id, CommentRequestDto commentRequestDto);
+
+    Item getItemById(Long id);
 }

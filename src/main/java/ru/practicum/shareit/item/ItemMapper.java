@@ -1,27 +1,43 @@
 package ru.practicum.shareit.item;
 
 import org.mapstruct.*;
-import ru.practicum.shareit.booking.dto.BookingShortDto;
+import ru.practicum.shareit.booking.dto.BookingItemDto;
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.item.dto.*;
 import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.user.model.User;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface ItemMapper {
-    @Mapping(source = "request.id", target = "requestId")
-    ItemDtoResponse mapToItemDtoResponse(Item item);
+    @Mapping(target = "ownerId", expression = "java(item.getOwner().getId())")
+    ItemDto toItemDto(Item item);
 
-    Item mapToItemFromItemDto(ItemDto itemDto);
+    @Mapping(target = "id", expression = "java(itemDto.getId())")
+    @Mapping(target = "name", expression = "java(itemDto.getName())")
+    @Mapping(target = "owner", expression = "java(user)")
+    Item toItem(ItemDto itemDto, User user);
 
-    @Mapping(source = "booker.id", target = "bookerId")
-    BookingShortDto mapToBookingShortDto(Booking booking);
+    @Mapping(target = "id", expression = "java(item.getId())")
+    @Mapping(target = "ownerId", expression = "java(item.getOwner().getId())")
+    @Mapping(target = "lastBooking", expression = "java(lastBooking)")
+    @Mapping(target = "nextBooking", expression = "java(nextBooking)")
+    @Mapping(target = "comments", expression = "java(comments)")
+    ItemExtendedDto toItemExtendedDto(Item item, BookingItemDto lastBooking, BookingItemDto nextBooking,
+                                      List<CommentDto> comments);
 
-    Comment mapToCommentFromCommentDto(CommentDto commentDto);
+    @Mapping(target = "bookerId", expression = "java(booking.getBooker().getId())")
+    BookingItemDto bookingToBookingItemDto(Booking booking);
 
-    @Mapping(source = "author.name", target = "authorName")
-    CommentDtoResponse mapToCommentDtoResponseFromComment(Comment comment);
+    @Mapping(target = "id", expression = "java(null)")
+    @Mapping(target = "created", expression = "java(dateTime)")
+    @Mapping(target = "author", expression = "java(user)")
+    Comment commentRequestDtoToComment(CommentRequestDto commentRequestDto, LocalDateTime dateTime,
+                                       User user, Long itemId);
 
-    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
-    Item mapToItemFromItemDtoUpdate(ItemDtoUpdate itemDtoUpdate, @MappingTarget Item item);
+    @Mapping(target = "authorName", expression = "java(comment.getAuthor().getName())")
+    CommentDto commentToCommentDto(Comment comment);
 }

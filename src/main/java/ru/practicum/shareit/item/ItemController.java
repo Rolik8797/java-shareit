@@ -1,78 +1,83 @@
 package ru.practicum.shareit.item;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
+
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.item.dto.*;
+import ru.practicum.shareit.markers.Constants;
+import ru.practicum.shareit.markers.Create;
+import ru.practicum.shareit.markers.Update;
 
 import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 
-@Controller
+import javax.validation.constraints.Positive;
+import javax.validation.constraints.PositiveOrZero;
+import java.util.List;
+
+@RestController
 @RequestMapping("/items")
+@Slf4j
 @Validated
-@RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class ItemController {
     private final ItemService itemService;
 
-    @PostMapping
-    public ResponseEntity<ItemDtoResponse> createItem(@RequestHeader("X-Sharer-User-Id") @Min(1) Long userId,
-                                                      @Valid @RequestBody ItemDto itemDto) {
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(itemService.createItem(itemDto, userId));
-    }
-
-    @PatchMapping("{itemId}")
-    public ResponseEntity<ItemDtoResponse> updateItem(@RequestHeader("X-Sharer-User-Id") @Min(1) Long userId,
-                                                      @RequestBody ItemDtoUpdate itemDtoUpdate,
-                                                      @PathVariable @Min(1) Long itemId) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemService.updateItem(itemId, userId, itemDtoUpdate));
-    }
-
-    @GetMapping("{itemId}")
-    public ResponseEntity<ItemDtoResponse> getItemByItemId(@RequestHeader("X-Sharer-User-Id") @Min(1) Long userId,
-                                                           @PathVariable @Min(1) Long itemId) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemService.getItemByItemId(userId, itemId));
+    public ItemController(ItemService itemService) {
+        this.itemService = itemService;
     }
 
     @GetMapping
-    public ResponseEntity<ItemListDto> getPersonalItems(
-            @RequestHeader("X-Sharer-User-Id") @Min(1) Long userId,
-            @RequestParam(value = "from", defaultValue = "0") @Min(0) Integer from,
-            @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(20) Integer size) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemService.getPersonalItems(PageRequest.of(from / size, size), userId));
+    public List<ItemExtendedDto> getPersonalItems(
+            @RequestHeader(Constants.headerUserId) Long userId,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) @Positive Integer size) {
+        log.info("Получен запрос GET /items " + userId);
+        return itemService.getPersonalItems(userId, PageRequest.of(from / size, size));
     }
 
-    @GetMapping("search")
-    public ResponseEntity<ItemListDto> getFoundItems(
+    @GetMapping("/{id}")
+    public ItemExtendedDto getById(@RequestHeader(Constants.headerUserId) Long userId,
+                                   @PathVariable Long id) {
+        log.info("Получен запрос GET /items/id  запрос на вещь с id" + id);
+        return itemService.getById(userId, id);
+    }
+
+    @PostMapping
+    public ItemDto createItem(@RequestHeader(Constants.headerUserId) Long userId,
+                              @Validated(Create.class) @RequestBody ItemDto itemDto) {
+        log.info("Получен запрос POST /items " + itemDto);
+        return itemService.createItem(userId, itemDto);
+    }
+
+    @PatchMapping("/{id}")
+    public ItemDto updateItem(@RequestHeader(Constants.headerUserId) Long userId,
+                              @PathVariable Long id,
+                              @Validated(Update.class) @RequestBody ItemDto itemDto) {
+        log.info("Получен запрос PATCH /items/id " + "!Обновление вещи с id" + id + " на " + itemDto + " юзер с id" + userId);
+        return itemService.updateItem(userId, id, itemDto);
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        log.info("Получен запрос POST /items/id " + id);
+        itemService.delete(id);
+    }
+
+    @GetMapping("/search")
+    public List<ItemDto> getFoundItems(
             @RequestParam String text,
-            @RequestParam(value = "from", defaultValue = "0") @Min(0) Integer from,
-            @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(20) Integer size) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemService.getFoundItems(PageRequest.of(from / size, size), text));
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) @Positive Integer size) {
+        log.info("Получен запрос PATCH /items/search " + text);
+        return itemService.getFoundItems(text, PageRequest.of(from / size, size));
     }
 
-    @PostMapping("{itemId}/comment")
-    public ResponseEntity<CommentDtoResponse> addComment(@PathVariable @Min(1) Long itemId,
-                                                         @RequestHeader("X-Sharer-User-Id") @Min(1) Long userId,
-                                                         @Valid @RequestBody CommentDto commentDto) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemService.addComment(itemId, userId, commentDto));
+    @PostMapping("{id}/comment")
+    public CommentDto addComment(@RequestHeader(Constants.headerUserId) long userId,
+                                 @PathVariable long id,
+                                 @Valid @RequestBody CommentRequestDto commentRequestDto) {
+        return itemService.addComment(userId, id, commentRequestDto);
     }
-
 }

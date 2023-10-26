@@ -1,29 +1,29 @@
 package ru.practicum.shareit.item.dto;
 
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.FieldDefaults;
+import ru.practicum.shareit.markers.Create;
 
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
-import javax.validation.constraints.Pattern;
-import javax.validation.constraints.Size;
+import javax.validation.constraints.*;
 
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
 @Setter
 @Builder
 public class ItemDto {
-    @Pattern(regexp = "^[^ ].*[^ ]$", message = "Некорректное имя")
-    @Size(max = 255)
-    @NotNull(message = "Поле name обязательно")
-    private String name;
-    @Pattern(regexp = "^[^ ].*[^ ]$", message = "Некорректное описание")
-    @Size(max = 500)
-    @NotNull(message = "Поле description обязательно")
-    private String description;
-    @NotNull(message = "Поле available обязательно")
-    private Boolean available;
-    @Min(1)
-    private Long requestId;
+    Long id;
 
+    @NotBlank(groups = Create.class)
+    String name;
+
+    @NotBlank(groups = Create.class)
+    String description;
+
+    @NotNull(groups = Create.class)
+    Boolean available;
+    Long ownerId;
+    Long requestId;
 }

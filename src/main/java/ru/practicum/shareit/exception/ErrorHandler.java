@@ -2,64 +2,41 @@ package ru.practicum.shareit.exception;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.server.ResponseStatusException;
 
 
-import javax.validation.ConstraintViolationException;
-
+@RestControllerAdvice
 @Slf4j
-@RestControllerAdvice("ru.practicum.shareit")
 public class ErrorHandler {
-
-    @ExceptionHandler(ResponseStatusException.class)
-    private ResponseEntity<String> handleException(ResponseStatusException exception) {
-        log.debug("Получен статус {}", exception.getMessage(), exception);
-        return ResponseEntity
-                .status(exception.getStatus())
-                .body(exception.getMessage());
+    @ExceptionHandler({NotFoundException.class})
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ErrorResponse handleNotFound(final RuntimeException exception) {
+        log.error(exception.toString());
+        return new ErrorResponse(exception.getMessage());
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    private ResponseEntity<String> handleException(MethodArgumentNotValidException exception) {
-        log.debug("Получен статус 400 BAD_REQUEST {}", exception.getMessage(), exception);
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(HttpStatus.BAD_REQUEST + " " + exception.getMessage());
+    @ExceptionHandler({AuthorisationException.class})
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ErrorResponse handleForbidden(final RuntimeException exception) {
+        log.error(exception.toString());
+        return new ErrorResponse(exception.getMessage());
     }
 
-    @ExceptionHandler(RuntimeException.class)
-    private ResponseEntity<String> handleException() {
-        log.debug("Получен статус 500 INTERNAL_SERVER_ERROR - нарушение уникального индекса или первичного ключа");
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(HttpStatus.INTERNAL_SERVER_ERROR + " Нарушение уникального индекса или первичного ключа");
+    @ExceptionHandler({BookingException.class})
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleBadRequest(final RuntimeException exception) {
+        log.error(exception.toString());
+        return new ErrorResponse(exception.getMessage());
     }
 
-    @ExceptionHandler(StateException.class)
-    private ResponseEntity<StateErrorResponse> handleException(StateException exception) {
-        log.debug("Получен статус 400 BAD_REQUEST {}", exception.getMessage(), exception);
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(new StateErrorResponse(exception.getMessage()));
-    }
 
-    @ExceptionHandler(ConstraintViolationException.class)
-    private ResponseEntity<String> handleException(ConstraintViolationException exception) {
-        log.debug("Получен статус 400 BAD_REQUEST {}", exception.getMessage(), exception);
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(HttpStatus.BAD_REQUEST + " " + exception.getMessage());
-    }
-
-    @ExceptionHandler(Exception.class)
-    private ResponseEntity<String> handleException(Exception exception) {
-        log.debug("Получен статус 500 INTERNAL_SERVER_ERROR {}", exception.getMessage(), exception);
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(HttpStatus.INTERNAL_SERVER_ERROR + exception.getMessage());
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ErrorResponse handleException(final RuntimeException exception) {
+        log.error("400 {}", exception.getMessage(), exception);
+        return new ErrorResponse(exception.getMessage());
     }
 }

@@ -1,69 +1,62 @@
 package ru.practicum.shareit.request;
 
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
+
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import ru.practicum.shareit.markers.Constants;
+import ru.practicum.shareit.request.dto.ItemRequestAddDto;
 import ru.practicum.shareit.request.dto.ItemRequestDto;
-import ru.practicum.shareit.request.dto.ItemRequestDtoResponse;
-import ru.practicum.shareit.request.dto.ItemRequestListDto;
-import ru.practicum.shareit.request.dto.RequestDtoResponseWithMD;
+import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
 
 import javax.validation.Valid;
-import javax.validation.constraints.Max;
-import javax.validation.constraints.Min;
 
-@Controller
-@RequestMapping("/requests")
+import javax.validation.constraints.Positive;
+import javax.validation.constraints.PositiveOrZero;
+import java.util.List;
+
+@RestController
+@RequestMapping(path = "/requests")
+@Slf4j
 @Validated
-@RequiredArgsConstructor(onConstructor = @__(@Autowired))
 public class ItemRequestController {
     private final ItemRequestService itemRequestService;
 
+    public ItemRequestController(ItemRequestService itemRequestService) {
+        this.itemRequestService = itemRequestService;
+    }
+
     @PostMapping
-    public ResponseEntity<ItemRequestDtoResponse> createRequest(@RequestHeader("X-Sharer-User-Id") @Min(1) Long requesterId,
-                                                                @RequestBody @Valid ItemRequestDto itemRequestDto) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemRequestService.createItemRequest(itemRequestDto, requesterId));
+    public ItemRequestDto createItemRequest(
+            @RequestHeader(Constants.headerUserId) Long userId,
+            @Valid @RequestBody ItemRequestAddDto itemRequestCreateDto) {
+        log.info("Получен запрос POST  " + userId);
+        return itemRequestService.createItemRequest(userId, itemRequestCreateDto);
+    }
+
+    @GetMapping("/{id}")
+    public ItemRequestExtendedDto getById(
+            @RequestHeader(Constants.headerUserId) Long userId,
+            @PathVariable Long id) {
+        log.info("Получен запрос GET вещи с id: " + id + "пользователя с id: " + userId);
+        return itemRequestService.getById(userId, id);
     }
 
     @GetMapping
-    public ResponseEntity<ItemRequestListDto> getPrivateRequests(
-            @RequestHeader("X-Sharer-User-Id") @Min(1) Long requesterId,
-            @RequestParam(value = "from", defaultValue = "0") @Min(0) Integer from,
-            @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(20) Integer size) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemRequestService
-                        .getPrivateRequests(PageRequest.of(from / size, size)
-                                .withSort(Sort.by("created").descending()), requesterId));
+    public List<ItemRequestExtendedDto> getByRequestorId(
+            @RequestHeader(Constants.headerUserId) Long userId) {
+        log.info("Получен запрос GET в соответсвии с RequestId");
+        return itemRequestService.getByRequestorId(userId);
     }
 
-    @GetMapping("all")
-    public ResponseEntity<ItemRequestListDto> getOtherRequests(
-            @RequestHeader("X-Sharer-User-Id") @Min(1) Long requesterId,
-            @RequestParam(value = "from", defaultValue = "0") @Min(0) Integer from,
-            @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(20) Integer size) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemRequestService
-                        .getOtherRequests(PageRequest.of(
-                                        from / size, size, Sort.by(Sort.Direction.DESC, "created")),
-                                requesterId));
-    }
-
-    @GetMapping("{requestId}")
-    public ResponseEntity<RequestDtoResponseWithMD> getItemRequest(
-            @RequestHeader("X-Sharer-User-Id") @Min(1) Long userId,
-            @PathVariable @Min(1) Long requestId) {
-        return ResponseEntity
-                .status(HttpStatus.OK)
-                .body(itemRequestService.getItemRequest(userId, requestId));
+    @GetMapping("/all")
+    public List<ItemRequestExtendedDto> getAll(
+            @RequestHeader(Constants.headerUserId) Long userId,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) @Positive Integer size) {
+        log.info("Получен запрос GET всех вещей пользователя с id: " + userId);
+        return itemRequestService.getAll(userId, PageRequest.of(from / size, size));
     }
 }

@@ -1,310 +1,216 @@
 package ru.practicum.shareit.request;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MockMvc;
-
-import ru.practicum.shareit.request.dto.*;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.annotation.DirtiesContext;
 
 
-import java.time.LocalDateTime;
-import java.util.Collections;
+import ru.practicum.shareit.item.ItemController;
+import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.markers.Constants;
+
+import ru.practicum.shareit.request.dto.ItemRequestAddDto;
+import ru.practicum.shareit.request.dto.ItemRequestDto;
+import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
+
+import ru.practicum.shareit.user.UserController;
+import ru.practicum.shareit.user.dto.UserDto;
+
+
 import java.util.List;
 
-import static org.mockito.Mockito.*;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@WebMvcTest(ItemRequestController.class)
-@RequiredArgsConstructor(onConstructor = @__(@Autowired))
+@SpringBootTest
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
+@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
 public class ItemRequestControllerTest {
-    private final ObjectMapper objectMapper;
-    private final MockMvc mvc;
-    @MockBean
-    private final ItemRequestService itemRequestService;
-    private ItemRequestDto itemRequestDto;
-    private ItemRequestDtoResponse itemRequestDtoResponse;
-    private ItemRequestListDto itemRequestListDto;
-    private RequestDtoResponseWithMD requestDtoResponseWithMD;
-    private ItemDataForRequestDto itemDataForRequestDto;
-    private final String userIdHeader = "X-Sharer-User-Id";
+    private final UserController userController;
+    private final ItemController itemController;
+    private final ItemRequestController itemRequestController;
 
-    @BeforeEach
-    public void setUp() {
-        itemRequestDto = ItemRequestDto.builder()
-                .description("test description")
-                .build();
-        itemRequestDtoResponse = ItemRequestDtoResponse.builder()
-                .id(1L)
-                .description(itemRequestDto.getDescription())
-                .created(LocalDateTime.now())
-                .build();
-        requestDtoResponseWithMD = RequestDtoResponseWithMD.builder()
-                .id(1L)
-                .description(itemRequestDtoResponse.getDescription())
-                .created(itemRequestDtoResponse.getCreated())
-                .build();
-        itemDataForRequestDto = ItemDataForRequestDto.builder()
-                .id(1L)
-                .name("test item name")
-                .description("test description name")
-                .requestId(1L)
-                .available(Boolean.TRUE)
-                .build();
+    @Nested
+    class Add {
+        @Test
+        public void shouldAdd() {
+            UserDto userDto1 = UserDto.builder()
+                    .id(1L)
+                    .name("Test user 1")
+                    .email("tester1@ya.ru")
+                    .build();
+            userController.createUser(userDto1);
+
+            ItemRequestAddDto itemRequestCreateDto = ItemRequestAddDto.builder()
+                    .description("description")
+                    .build();
+
+            ItemRequestDto itemRequestDto = itemRequestController.createItemRequest(userDto1.getId(), itemRequestCreateDto);
+
+            assertEquals(1L, itemRequestDto.getId());
+            assertEquals(itemRequestCreateDto.getDescription(), itemRequestDto.getDescription());
+            assertNotNull(itemRequestDto.getCreated());
+        }
     }
 
-    @Test
-    @SneakyThrows
-    public void createRequest() {
+    @Nested
+    class GetById {
+        @Test
+        public void shouldGetWithItems() {
+            UserDto userDto1 = UserDto.builder()
+                    .id(1L)
+                    .name("Test user 1")
+                    .email("tester1@ya.ru")
+                    .build();
+            userController.createUser(userDto1);
 
-        when(itemRequestService.createItemRequest(any(ItemRequestDto.class), anyLong()))
-                .thenReturn(itemRequestDtoResponse);
-        mvc.perform(
-                        post("/requests")
-                                .header(userIdHeader, 1)
-                                .content(objectMapper.writeValueAsString(itemRequestDto))
-                                .contentType(MediaType.APPLICATION_JSON)
-                ).andDo(print())
-                .andExpectAll(
+            UserDto userDto2 = UserDto.builder()
+                    .id(2L)
+                    .name("Test user 2")
+                    .email("tester2@ya.ru")
+                    .build();
+            userController.createUser(userDto2);
 
-                        status().isOk(),
-                        content().json(objectMapper.writeValueAsString(itemRequestDtoResponse))
-                );
+            ItemRequestAddDto itemRequestCreateDto = ItemRequestAddDto.builder()
+                    .description("description")
+                    .build();
+            ItemRequestDto itemRequestDto = itemRequestController.createItemRequest(userDto1.getId(), itemRequestCreateDto);
+
+            ItemDto itemDto = ItemDto.builder()
+                    .id(1L)
+                    .name("Test item")
+                    .description("Test item description")
+                    .available(true)
+                    .ownerId(userDto2.getId())
+                    .requestId(itemRequestDto.getId())
+                    .build();
+            itemController.createItem(itemDto.getOwnerId(), itemDto);
+
+            ItemRequestExtendedDto itemRequestFromController = itemRequestController.getById(userDto1.getId(), itemRequestDto.getId());
+
+            assertEquals(1L, itemRequestFromController.getId());
+            assertEquals(itemRequestCreateDto.getDescription(), itemRequestFromController.getDescription());
+            assertNotNull(itemRequestFromController.getCreated());
+
+            assertNotNull(itemRequestFromController.getItems());
+            assertEquals(1, itemRequestFromController.getItems().size());
+            assertEquals(itemDto.getId(), itemRequestFromController.getItems().get(0).getId());
+            assertEquals(itemDto.getDescription(), itemRequestFromController.getItems().get(0).getDescription());
+            assertEquals(itemDto.getAvailable(), itemRequestFromController.getItems().get(0).getAvailable());
+            assertEquals(itemDto.getOwnerId(), itemRequestFromController.getItems().get(0).getOwnerId());
+            assertEquals(itemDto.getRequestId(), itemRequestFromController.getItems().get(0).getRequestId());
+        }
     }
 
-    @Test
-    @SneakyThrows
-    public void createRequestWitchIncorrectUserId() {
+    @Nested
+    class GetByRequestorId {
+        @Test
+        public void shouldGetWithItems() {
+            UserDto userDto1 = UserDto.builder()
+                    .id(1L)
+                    .name("Test user 1")
+                    .email("tester1@ya.ru")
+                    .build();
+            userController.createUser(userDto1);
 
-        mvc.perform(
-                        post("/requests")
-                                .header(userIdHeader, 0)
-                                .content(objectMapper.writeValueAsString(itemRequestDto))
-                                .contentType(MediaType.APPLICATION_JSON)
-                ).andDo(print())
+            UserDto userDto2 = UserDto.builder()
+                    .id(2L)
+                    .name("Test user 2")
+                    .email("tester2@ya.ru")
+                    .build();
+            userController.createUser(userDto2);
 
-                .andExpectAll(
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).createItemRequest(any(ItemRequestDto.class), anyLong());
+            ItemRequestAddDto itemRequestCreateDto = ItemRequestAddDto.builder()
+                    .description("description")
+                    .build();
+            ItemRequestDto itemRequestDto = itemRequestController.createItemRequest(userDto1.getId(), itemRequestCreateDto);
+
+            ItemDto itemDto = ItemDto.builder()
+                    .id(1L)
+                    .name("Test item")
+                    .description("Test item description")
+                    .available(true)
+                    .ownerId(userDto2.getId())
+                    .requestId(itemRequestDto.getId())
+                    .build();
+            itemController.createItem(itemDto.getOwnerId(), itemDto);
+
+            List<ItemRequestExtendedDto> itemRequestsFromController = itemRequestController.getByRequestorId(userDto1.getId());
+
+            assertEquals(1, itemRequestsFromController.size());
+
+            ItemRequestExtendedDto itemRequestFromController = itemRequestsFromController.get(0);
+
+            assertEquals(1L, itemRequestFromController.getId());
+            assertEquals(itemRequestCreateDto.getDescription(), itemRequestFromController.getDescription());
+            assertNotNull(itemRequestFromController.getCreated());
+
+            assertNotNull(itemRequestFromController.getItems());
+            assertEquals(1, itemRequestFromController.getItems().size());
+            assertEquals(itemDto.getId(), itemRequestFromController.getItems().get(0).getId());
+            assertEquals(itemDto.getDescription(), itemRequestFromController.getItems().get(0).getDescription());
+            assertEquals(itemDto.getAvailable(), itemRequestFromController.getItems().get(0).getAvailable());
+            assertEquals(itemDto.getOwnerId(), itemRequestFromController.getItems().get(0).getOwnerId());
+            assertEquals(itemDto.getRequestId(), itemRequestFromController.getItems().get(0).getRequestId());
+        }
     }
 
-    @Test
-    @SneakyThrows
-    public void createRequestWhenIncorrectDescription() {
+    @Nested
+    class GetAll {
+        @Test
+        public void shouldGetAllWhereNotOwner() {
+            UserDto userDto1 = UserDto.builder()
+                    .id(1L)
+                    .name("Test user 1")
+                    .email("tester1@ya.ru")
+                    .build();
+            userController.createUser(userDto1);
 
-        itemRequestDto.setDescription(" ");
+            UserDto userDto2 = UserDto.builder()
+                    .id(2L)
+                    .name("Test user 2")
+                    .email("tester2@ya.ru")
+                    .build();
+            userController.createUser(userDto2);
 
-        mvc.perform(
-                        post("/requests")
-                                .header(userIdHeader, 0)
-                                .content(objectMapper.writeValueAsString(itemRequestDto))
-                                .contentType(MediaType.APPLICATION_JSON)
-                ).andDo(print())
+            ItemRequestAddDto itemRequestCreateDto = ItemRequestAddDto.builder()
+                    .description("description")
+                    .build();
+            ItemRequestDto itemRequestDto = itemRequestController.createItemRequest(userDto1.getId(), itemRequestCreateDto);
 
-                .andExpectAll(
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).createItemRequest(any(ItemRequestDto.class), anyLong());
-    }
+            ItemDto itemDto = ItemDto.builder()
+                    .id(1L)
+                    .name("Test item")
+                    .description("Test item description")
+                    .available(true)
+                    .ownerId(userDto2.getId())
+                    .requestId(itemRequestDto.getId())
+                    .build();
+            itemController.createItem(itemDto.getOwnerId(), itemDto);
 
-    @Test
-    @SneakyThrows
-    public void getPrivateRequests() {
+            List<ItemRequestExtendedDto> itemRequestsFromController = itemRequestController.getAll(
+                    userDto2.getId(),
+                    Integer.parseInt(Constants.PAGE_DEFAULT_FROM),
+                    Integer.parseInt(Constants.PAGE_DEFAULT_SIZE));
 
-        requestDtoResponseWithMD.setItems(List.of(itemDataForRequestDto));
-        itemRequestListDto = ItemRequestListDto.builder()
-                .requests(List.of(requestDtoResponseWithMD))
-                .build();
+            assertEquals(1, itemRequestsFromController.size());
 
-        when(itemRequestService.getPrivateRequests(any(PageRequest.class), anyLong())).thenReturn(itemRequestListDto);
-        mvc.perform(
-                        get("/requests")
-                                .header(userIdHeader, 1)
-                                .param("from", "0")
-                                .param("size", "2")
-                ).andDo(print())
-                .andExpectAll(
-                        status().isOk(),
-                        content().json(objectMapper.writeValueAsString(itemRequestListDto))
-                );
-    }
+            ItemRequestExtendedDto itemRequestFromController = itemRequestsFromController.get(0);
 
-    @Test
-    @SneakyThrows
-    public void getPrivateRequestsWithIncorrectUserId() {
+            assertEquals(1L, itemRequestFromController.getId());
+            assertEquals(itemRequestCreateDto.getDescription(), itemRequestFromController.getDescription());
+            assertNotNull(itemRequestFromController.getCreated());
 
-        mvc.perform(
-                        get("/requests")
-                                .header(userIdHeader, 0)
-                                .param("from", "0")
-                                .param("size", "2")
-                ).andDo(print())
-                .andExpectAll(
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).getPrivateRequests(any(PageRequest.class), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    public void getPrivateRequestsWithIncorrectParamFrom() {
-
-        mvc.perform(
-                        get("/requests")
-                                .header(userIdHeader, 1)
-                                .param("from", "-1")
-                                .param("size", "2")
-                ).andDo(print())
-                .andExpectAll(
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).getPrivateRequests(any(PageRequest.class), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    public void getPrivateRequestsWithIncorrectParamSize() {
-
-        mvc.perform(
-                        get("/requests")
-                                .header(userIdHeader, 1)
-                                .param("from", "0")
-                                .param("size", "-1")
-                ).andDo(print())
-                .andExpectAll(
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).getPrivateRequests(any(PageRequest.class), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    public void getOtherRequests() {
-
-        requestDtoResponseWithMD.setItems(Collections.singletonList(itemDataForRequestDto));
-        itemRequestListDto = ItemRequestListDto.builder()
-                .requests(List.of(requestDtoResponseWithMD))
-                .build();
-
-        when(itemRequestService.getOtherRequests(any(PageRequest.class), anyLong())).thenReturn(itemRequestListDto);
-        mvc.perform(
-                        get("/requests/all")
-                                .header(userIdHeader, 1)
-                                .param("from", "0")
-                                .param("size", "2")
-                ).andDo(print())
-                .andExpectAll(
-                        status().isOk(),
-                        content().json(objectMapper.writeValueAsString(itemRequestListDto))
-                );
-    }
-
-    @Test
-    @SneakyThrows
-    public void getOtherRequestsWitchIncorrectUserId() {
-
-        mvc.perform(
-                        get("/requests/all")
-                                .header(userIdHeader, 0)
-                                .param("from", "0")
-                                .param("size", "2")
-                ).andDo(print())
-                .andExpectAll(
-
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).getOtherRequests(any(PageRequest.class), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    public void getOtherRequestsWitchIncorrectParamFrom() {
-
-        mvc.perform(
-                        get("/requests/all")
-                                .header(userIdHeader, 1)
-                                .param("from", "-1")
-                                .param("size", "2")
-                ).andDo(print())
-                .andExpectAll(
-
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).getOtherRequests(any(PageRequest.class), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    public void getOtherRequestsWitchIncorrectParamSize() {
-
-        mvc.perform(
-                        get("/requests/all")
-                                .header(userIdHeader, 1)
-                                .param("from", "0")
-                                .param("size", "24343")
-                ).andDo(print())
-                .andExpectAll(
-
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).getOtherRequests(any(PageRequest.class), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    public void getItemRequest() {
-
-        requestDtoResponseWithMD.setItems(Collections.singletonList(itemDataForRequestDto));
-
-        when(itemRequestService.getItemRequest(anyLong(), anyLong())).thenReturn(requestDtoResponseWithMD);
-        mvc.perform(
-                        get("/requests/1")
-                                .header(userIdHeader, 1)
-                ).andDo(print())
-                .andExpectAll(
-                        status().isOk(),
-                        content().json(objectMapper.writeValueAsString(requestDtoResponseWithMD))
-                );
-    }
-
-    @Test
-    @SneakyThrows
-    public void getItemRequestWitchIncorrectUserId() {
-
-        mvc.perform(
-                        get("/requests/1")
-                                .header(userIdHeader, 0)
-                ).andDo(print())
-                .andExpectAll(
-
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).getItemRequest(anyLong(), anyLong());
-    }
-
-    @Test
-    @SneakyThrows
-    public void getItemRequestWitchIncorrectItemRequestId() {
-
-        mvc.perform(
-                        get("/requests/0")
-                                .header(userIdHeader, 1)
-                ).andDo(print())
-                .andExpectAll(
-                        status().isBadRequest()
-                );
-        verify(itemRequestService, times(0)).getItemRequest(anyLong(), anyLong());
+            assertNotNull(itemRequestFromController.getItems());
+            assertEquals(1, itemRequestFromController.getItems().size());
+            assertEquals(itemDto.getId(), itemRequestFromController.getItems().get(0).getId());
+            assertEquals(itemDto.getDescription(), itemRequestFromController.getItems().get(0).getDescription());
+            assertEquals(itemDto.getAvailable(), itemRequestFromController.getItems().get(0).getAvailable());
+            assertEquals(itemDto.getOwnerId(), itemRequestFromController.getItems().get(0).getOwnerId());
+            assertEquals(itemDto.getRequestId(), itemRequestFromController.getItems().get(0).getRequestId());
+        }
     }
 }

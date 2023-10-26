@@ -1,20 +1,21 @@
 package ru.practicum.shareit.user.dto;
 
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import ru.practicum.shareit.markers.Create;
+import ru.practicum.shareit.markers.Update;
 
 import javax.validation.constraints.*;
 
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
 @Setter
 @Builder
+@ToString
 public class UserDto {
-    @Pattern(regexp = "^[^ ].*[^ ]$", message = "Некорректное имя")
-    @Size(max = 255)
-    @NotNull
-    private String name;
-    @Email(message = "Некорректный email")
-    @NotEmpty(message = "Поле email обязательно")
-    private String email;
+    Long id;
+    String name;
+    @NotBlank(groups = Create.class)
+    @Email(groups = {Create.class, Update.class})
+    String email;
 }

@@ -2,22 +2,44 @@ package ru.practicum.shareit.user.model;
 
 
 import javax.persistence.*;
+import javax.validation.constraints.Email;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+import java.util.Objects;
 
 
+@Entity
+@Table(name = "users", schema = "public", uniqueConstraints = @UniqueConstraint(columnNames = {"email"}))
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
 @Setter
-@Entity
-@Table(name = "users")
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "user_id")
-    private Long id;
-    @Column(name = "name", nullable = false)
-    private String name;
-    @Column(name = "email", nullable = false, unique = true)
-    private String email;
+    Long id;
+
+    @Column
+    String name;
+
+    @Email
+    @Column(nullable = false)
+    String email;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof User)) return false;
+        return id != null && id.equals(((User) o).getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, email);
+    }
 }

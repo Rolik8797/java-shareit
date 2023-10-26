@@ -1,41 +1,56 @@
 package ru.practicum.shareit.item.model;
 
-import lombok.Getter;
-import lombok.Setter;
-import org.hibernate.annotations.Fetch;
-import org.hibernate.annotations.FetchMode;
-import ru.practicum.shareit.booking.model.Booking;
-import ru.practicum.shareit.request.model.ItemRequest;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import ru.practicum.shareit.user.model.User;
 import javax.persistence.*;
-import java.util.List;
-import java.util.Set;
 
+import java.util.Objects;
+
+
+@Entity
+@Table(name = "items", schema = "public")
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
 @Setter
-@Entity
-@Table(name = "items")
+@ToString
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Item {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "item_id")
-    private Long id;
+    Long id;
+
     @Column(nullable = false)
-    private String name;
-    @Column(nullable = false, length = 500)
-    private String description;
-    @Column(name = "is_available")
-    private Boolean available;
-    @ManyToOne
-    @JoinColumn(name = "owner_id")
-    private User owner;
-    @ManyToOne
-    @JoinColumn(name = "request_id")
-    private ItemRequest request;
-    @OneToMany(mappedBy = "item")
-    @Fetch(FetchMode.SUBSELECT)
-    private Set<Comment> comments;
-    @OneToMany(mappedBy = "item")
-    private List<Booking> bookings;
+    String name;
+
+    @Column(nullable = false)
+    String description;
+
+    @Column(nullable = false)
+    Boolean available;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @JoinColumn(name = "owner_id", referencedColumnName = "id", nullable = false)
+    User owner;
+
+    @Column(name = "request_id")
+    Long requestId;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Item)) return false;
+        return id != null && id.equals(((Item) o).getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, name, description, available, owner, requestId);
+    }
 }

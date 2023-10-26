@@ -1,60 +1,80 @@
 package ru.practicum.shareit.user;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import lombok.extern.slf4j.Slf4j;
+
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
+
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
+
+import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.user.dto.UserDto;
-import ru.practicum.shareit.user.dto.UserDtoResponse;
-import ru.practicum.shareit.user.dto.UserDtoUpdate;
-import ru.practicum.shareit.user.dto.UserListDto;
 
 import ru.practicum.shareit.user.model.User;
 
 
+import java.util.List;
 import java.util.stream.Collectors;
 
+
 @Service
-@RequiredArgsConstructor(onConstructor = @__(@Autowired))
+@Slf4j
+@Transactional(readOnly = true)
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
-
     private final UserMapper userMapper;
 
     @Override
-    public UserDtoResponse createUser(UserDto user) {
-        return userMapper.mapToUserDtoResponse(userRepository.save(userMapper.mapToUserFromUserDto(user)));
+    public List<UserDto> getAll() {
+        log.info("Вывод всех пользователей.");
+        return userRepository.findAll().stream()
+                .map(userMapper::toUserDto)
+                .collect(Collectors.toList());
     }
 
     @Override
-    public UserDtoResponse getUserById(Long id) {
-        return userMapper.mapToUserDtoResponse(userRepository.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", id)))
-        );
+    public UserDto getById(Long id) {
+        log.info("Вывод пользователя с id {}.", id);
+        return userMapper.toUserDto(userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователя с таким id не существует.")));
     }
 
     @Override
-    public UserListDto getUsers() {
-        return UserListDto.builder()
-                .users(userRepository.findAll().stream().map(userMapper::mapToUserDtoResponse).collect(Collectors.toList()))
-                .build();
+    @Transactional
+    public UserDto createUser(UserDto userDto) {
+        log.info("Добавление пользователя {}", userDto);
+        return userMapper.toUserDto(userRepository.save(userMapper.toUser(userDto)));
     }
 
     @Override
-    @Transactional(propagation = Propagation.SUPPORTS)
-    public UserDtoResponse updateUser(UserDtoUpdate user, Long userId) {
-        User updatingUser = userRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", userId)));
-        return userMapper.mapToUserDtoResponse(userRepository.save(userMapper.mapToUserFromUserDtoUpdate(user, updatingUser)));
-    }
+    @Transactional
+    public UserDto updateUser(Long id, UserDto userDto) {
+        log.info("Обновление пользователя {} с id {}.", userDto, id);
 
-    @Override
-    public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, String.format("Пользователя с id=%s нет", id));
+        User repoUser = userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователя с таким id не существует."));
+
+        if (userDto.getEmail() != null) {
+            repoUser.setEmail(userDto.getEmail());
         }
+        if (userDto.getName() != null) {
+            repoUser.setName(userDto.getName());
+        }
+
+        return userMapper.toUserDto(userRepository.save(repoUser));
+    }
+
+    @Override
+    @Transactional
+    public void deleteUser(Long id) {
+        log.info("Удаление пользователя с id {}", id);
         userRepository.deleteById(id);
+    }
+
+    @Override
+    public User getUserById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Пользователя с таким id не существует."));
     }
 }

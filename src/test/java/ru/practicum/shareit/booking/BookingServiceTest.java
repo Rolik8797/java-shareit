@@ -1,795 +1,720 @@
 package ru.practicum.shareit.booking;
 
-import lombok.SneakyThrows;
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.Pageable;
+import ru.practicum.shareit.booking.dto.BookingRequestDto;
+import ru.practicum.shareit.booking.dto.BookingResponseDto;
 
-import org.springframework.web.server.ResponseStatusException;
-import ru.practicum.shareit.booking.dto.BookingDto;
-import ru.practicum.shareit.booking.dto.BookingDtoResponse;
-
-import ru.practicum.shareit.booking.dto.BookingListDto;
 import ru.practicum.shareit.booking.model.Booking;
 
+import ru.practicum.shareit.booking.model.State;
 import ru.practicum.shareit.booking.model.Status;
-import ru.practicum.shareit.exception.StateException;
-import ru.practicum.shareit.item.ItemRepository;
-import ru.practicum.shareit.item.dto.ItemShortDto;
+import ru.practicum.shareit.exception.BookingException;
+import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.ItemService;
+import ru.practicum.shareit.item.dto.ItemDto;
 import ru.practicum.shareit.item.model.Item;
 
-import ru.practicum.shareit.user.UserRepository;
-import ru.practicum.shareit.user.dto.UserShortDto;
+import ru.practicum.shareit.markers.Constants;
+import ru.practicum.shareit.user.UserService;
+import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
 
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
-import static org.assertj.core.api.Assertions.*;
-
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
-public class BookingServiceTest extends Bookings {
+@ExtendWith(MockitoExtension.class)
+public class BookingServiceTest {
+    private final int from = Integer.parseInt(Constants.PAGE_DEFAULT_FROM);
+    private final int size = Integer.parseInt(Constants.PAGE_DEFAULT_SIZE);
+    private final Pageable pageable = PageRequest.of(from / size, size);
+    private final LocalDateTime dateTime = LocalDateTime.of(2023, 1, 1, 10, 0, 0);
+    private final User user1 = User.builder()
+            .id(1L)
+            .name("Test user 1")
+            .email("t-r1@ya.ru")
+            .build();
+    private final User user2 = User.builder()
+            .id(2L)
+            .name("Test user 2")
+            .email("t-r2@ya.ru")
+            .build();
+    private final User user3 = User.builder()
+            .id(3L)
+            .name("Test user 3")
+            .email("t-r3@ya.ru")
+            .build();
+    private final UserDto user2Dto = UserDto.builder()
+            .id(2L)
+            .name("Test user 2")
+            .email("t-r2@ya.ru")
+            .build();
+    private final Item item1 = Item.builder()
+            .id(1L)
+            .name("item1 name")
+            .description("seaRch1 description ")
+            .available(true)
+            .owner(user1)
+            .build();
+    private final Booking booking = Booking.builder()
+            .id(1L)
+            .start(dateTime.minusYears(10))
+            .end(dateTime.minusYears(9))
+            .item(item1)
+            .booker(user2)
+            .status(Status.APPROVED)
+            .build();
+    private final BookingRequestDto bookingRequestDto = BookingRequestDto.builder()
+            .start(dateTime.plusYears(5))
+            .end(dateTime.plusYears(6))
+            .itemId(item1.getId())
+            .build();
+    private final BookingRequestDto bookingRequestDtoWrongDate = BookingRequestDto.builder()
+            .start(dateTime.plusYears(5))
+            .end(dateTime)
+            .itemId(item1.getId())
+            .build();
+    private final ItemDto item1Dto = ItemDto.builder()
+            .id(1L)
+            .name("item1 name")
+            .description("seaRch1 description ")
+            .available(true)
+            .ownerId(user1.getId())
+            .build();
+    private final BookingResponseDto bookingResponseDto = BookingResponseDto.builder()
+            .id(1L)
+            .start(dateTime.minusYears(10))
+            .end(dateTime.minusYears(9))
+            .item(item1Dto)
+            .booker(user2Dto)
+            .status(Status.APPROVED)
+            .build();
+    private final Item itemIsNoAvailable = Item.builder()
+            .id(3L)
+            .name("item3 name")
+            .description("itEm3 description")
+            .available(false)
+            .owner(user1)
+            .build();
     @Mock
-    private BookingService bookingService;
+    private UserService userService;
+    @Mock
+    private ItemService itemService;
     @Mock
     private BookingRepository bookingRepository;
     @Mock
-    private UserRepository userRepository;
-    @Mock
-    private ItemRepository itemRepository;
-
-    private User user1;
-    private User user2;
-    private Item item1;
-    private Item item2;
-    private BookingDto booking1Dto;
+    private BookingMapperImpl bookingMapper;
+    @InjectMocks
+    private BookingServiceImpl bookingService;
+    @Captor
+    private ArgumentCaptor<Booking> bookingArgumentCaptor;
+    private Booking bookingIsWaiting1;
 
     @BeforeEach
-    public void setUp() {
-
-        user1 = new User();
-        user1.setName("test name");
-        user1.setEmail("test@test.ru");
-        user2 = new User();
-        user2.setName("test name2");
-        user2.setEmail("test2@test.ru");
-        item1 = new Item();
-        item1.setName("test item");
-        item1.setDescription("test item description");
-        item1.setAvailable(Boolean.TRUE);
-        item1.setOwner(user1);
-        item2 = new Item();
-        item2.setName("test item2");
-        item2.setDescription("test item2 description");
-        item2.setAvailable(Boolean.TRUE);
-        item2.setOwner(user2);
-        booking1Dto = BookingDto.builder()
-                .start(LocalDateTime.now().plusDays(1))
-                .end(LocalDateTime.now().plusDays(2))
-                .itemId(1L)
-                .build();
-
-        MockitoAnnotations.initMocks(this);
-
-    }
-
-    @Test
-    public void createAndGetBooking() {
-
-        when(userRepository.save(user1)).thenReturn(user1);
-        when(userRepository.save(user2)).thenReturn(user2);
-        when(itemRepository.save(item1)).thenReturn(item1);
-
-        BookingDtoResponse createdBookingDto = BookingDtoResponse.builder()
-                .id(1L)
-                .start(LocalDateTime.now())
-                .end(LocalDateTime.now().plusHours(2))
-                .item(ItemShortDto.builder().id(1L).name("Sample Item").build())
-                .booker(UserShortDto.builder().id(1L).name("John Doe").build())
-                .status(Status.APPROVED)
-                .build();
-
-        when(bookingService.createBooking(eq(user2.getId()), any(BookingDto.class)))
-                .thenReturn(createdBookingDto);
-
-        when(bookingService.getBookingByIdForOwnerAndBooker(eq(createdBookingDto.getId()), eq(user2.getId())))
-                .thenReturn(createdBookingDto);
-
-        BookingDtoResponse savedBookingDto = bookingService.createBooking(user2.getId(), booking1Dto);
-        BookingDtoResponse findBookingDto = bookingService.getBookingByIdForOwnerAndBooker(savedBookingDto.getId(), user2.getId());
-
-        assertThat(savedBookingDto).usingRecursiveComparison().ignoringFields("start", "end")
-                .isEqualTo(findBookingDto);
-    }
-
-    @Test
-    public void createBookingWhenEndBeforeStart() {
-
-        booking1Dto.setStart(LocalDateTime.now().plusDays(2));
-        booking1Dto.setEnd(LocalDateTime.now().plusDays(1));
-
-        when(userRepository.save(user1)).thenReturn(user1);
-        when(userRepository.save(user2)).thenReturn(user2);
-        when(itemRepository.save(item1)).thenReturn(item1);
-
-        try {
-            bookingService.createBooking(user2.getId(), booking1Dto);
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-            assertThat(e.getReason()).contains("End time cannot be before start time");
-        }
-    }
-
-    @Test
-    public void createBookingWithNotExistingItem() {
-
-        booking1Dto.setItemId(2L);
-
-        when(userRepository.save(user1)).thenReturn(user1);
-        when(userRepository.save(user2)).thenReturn(user2);
-        when(itemRepository.save(item1)).thenReturn(item1);
-
-        when(itemRepository.findById(booking1Dto.getItemId())).thenReturn(Optional.empty());
-
-        try {
-            bookingService.createBooking(user2.getId(), booking1Dto);
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.NOT_FOUND.value());
-            assertThat(e.getReason()).contains("Item not found");
-        }
-    }
-
-    @Test
-    public void createBookingWhenBookerIsOwner() {
-
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-
-        try {
-            bookingService.createBooking(user1.getId(), booking1Dto);
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-            assertThat(e.getReason()).contains("Cannot book your own item");
-        }
-    }
-
-    @Test
-    public void createBookingWhenNotExistingBooker() {
-
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-
-        try {
-            bookingService.createBooking(99L, booking1Dto);
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.NOT_FOUND.value());
-            assertThat(e.getReason()).contains("Booker not found");
-        }
-    }
-
-    @Test
-    public void createBookingWithNotAvailableItem() {
-
-        item1.setAvailable(false);
-
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-
-        try {
-            bookingService.createBooking(user2.getId(), booking1Dto);
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.BAD_REQUEST.value());
-            assertThat(e.getReason()).contains("Item is not available");
-        }
-    }
-
-    @Test
-    public void approveBooking() {
-
-        when(userRepository.save(user1)).thenReturn(user1);
-        when(userRepository.save(user2)).thenReturn(user2);
-        when(itemRepository.save(item1)).thenReturn(item1);
-
-        BookingDtoResponse savedBooking = BookingDtoResponse.builder()
-                .id(1L)
-                .start(LocalDateTime.now().plusDays(1))
-                .end(LocalDateTime.now().plusDays(2))
-                .item(ItemShortDto.builder().id(1L).name("Sample Item").build())
-                .booker(UserShortDto.builder().id(1L).name("John Doe").build())
+    public void beforeEach() {
+        bookingIsWaiting1 = Booking.builder()
+                .id(3L)
+                .start(dateTime.plusYears(8))
+                .end(dateTime.plusYears(9))
+                .item(item1)
+                .booker(user2)
                 .status(Status.WAITING)
                 .build();
-
-        BookingDtoResponse approvedBooking = bookingService.approveBooking(user1.getId(), savedBooking.getId(), true);
-        BookingDtoResponse findBooking = bookingService.getBookingByIdForOwnerAndBooker(savedBooking.getId(), user2.getId());
-
-        assertThat(approvedBooking).usingRecursiveComparison().isEqualTo(findBooking);
     }
 
-    @Test
-    public void rejectBooking() {
-
-        when(userRepository.save(user1)).thenReturn(user1);
-        when(userRepository.save(user2)).thenReturn(user2);
-        when(itemRepository.save(item1)).thenReturn(item1);
-
-        BookingDtoResponse savedBooking = BookingDtoResponse.builder()
-                .id(1L)
-                .start(LocalDateTime.now().plusDays(1))
-                .end(LocalDateTime.now().plusDays(2))
-                .item(ItemShortDto.builder().id(1L).name("Sample Item").build())
-                .booker(UserShortDto.builder().id(1L).name("John Doe").build())
-                .status(Status.WAITING)
-                .build();
-
-        BookingDtoResponse rejectedBooking = bookingService.approveBooking(user1.getId(), savedBooking.getId(), false);
-        BookingDtoResponse findBooking = bookingService.getBookingByIdForOwnerAndBooker(savedBooking.getId(), user2.getId());
-
-        assertThat(rejectedBooking).usingRecursiveComparison().isEqualTo(findBooking);
+    private void checkBookingResponseDto(Booking booking, BookingResponseDto bookingResponseDto) {
+        assertEquals(booking.getId(), bookingResponseDto.getId());
+        assertEquals(booking.getStart(), bookingResponseDto.getStart());
+        assertEquals(booking.getEnd(), bookingResponseDto.getEnd());
+        assertEquals(booking.getBooker().getId(), bookingResponseDto.getBooker().getId());
+        assertEquals(booking.getBooker().getName(), bookingResponseDto.getBooker().getName());
+        assertEquals(booking.getBooker().getEmail(), bookingResponseDto.getBooker().getEmail());
+        assertEquals(booking.getStatus(), bookingResponseDto.getStatus());
+        assertEquals(booking.getItem().getId(), bookingResponseDto.getItem().getId());
+        assertEquals(booking.getItem().getName(), bookingResponseDto.getItem().getName());
+        assertEquals(booking.getItem().getDescription(), bookingResponseDto.getItem().getDescription());
+        assertEquals(booking.getItem().getAvailable(), bookingResponseDto.getItem().getAvailable());
+        assertEquals(booking.getItem().getRequestId(), bookingResponseDto.getItem().getRequestId());
+        assertEquals(booking.getItem().getOwner().getId(), bookingResponseDto.getItem().getOwnerId());
     }
 
-    @Test
-    public void approveBookingWithNotExistingBooking() {
+    @Nested
+    class GetById {
+        @Test
+        public void shouldGetByAuthor() {
+            when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
+            BookingResponseDto result = bookingService.getById(user2.getId(), booking.getId());
 
-        try {
-            bookingService.approveBooking(user1.getId(), 99L, true);
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus().value()).isEqualTo(HttpStatus.NOT_FOUND.value());
-            assertThat(e.getReason()).contains("Booking not found");
+            checkBookingResponseDto(booking, result);
+            verify(bookingRepository, times(1)).findById(1L);
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetByOwner() {
+            when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            BookingResponseDto result = bookingService.getById(user1.getId(), booking.getId());
+
+            checkBookingResponseDto(booking, result);
+            verify(bookingRepository, times(1)).findById(1L);
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldThrowExceptionIfNotOwnerOrAuthor() {
+            when(bookingRepository.findById(1L)).thenReturn(Optional.of(booking));
+
+            NotFoundException exception = assertThrows(NotFoundException.class,
+                    () -> bookingService.getById(user3.getId(), booking.getId()));
+            assertEquals("Просмотр бронирования доступно только автору или владельцу.", exception.getMessage());
+            verify(bookingRepository, times(1)).findById(1L);
         }
     }
 
-    @Test
-    public void approveBookingWhenBookingIsNotWaiting() {
+    @Nested
+    class GetAllByBookerId {
+        @Test
+        public void shouldGetAllIfBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByBookerIdOrderByStartDesc(user2.getId(), pageable))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
 
-        when(userRepository.save(user1)).thenReturn(user1);
-        when(userRepository.save(user2)).thenReturn(user2);
-        when(itemRepository.save(item1)).thenReturn(item1);
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user2.getId(), State.ALL, pageable);
 
-        BookingDtoResponse savedBooking = BookingDtoResponse.builder()
-                .id(1L)
-                .start(LocalDateTime.now().plusDays(1))
-                .end(LocalDateTime.now().plusDays(2))
-                .item(ItemShortDto.builder().id(1L).name("Sample Item").build())
-                .booker(UserShortDto.builder().id(1L).name("John Doe").build())
-                .status(Status.WAITING)
-                .build();
+            assertEquals(1, results.size());
 
-        bookingService.approveBooking(user1.getId(), savedBooking.getId(), false);
+            BookingResponseDto result = results.get(0);
 
-        try {
-            bookingService.approveBooking(user1.getId(), savedBooking.getId(), true);
-        } catch (ResponseStatusException ex) {
-            assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
-            assertThat(ex.getReason()).isEqualTo("Booking is already approved");
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdOrderByStartDesc(user2.getId(), pageable);
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetAllEmptyIfNotBooker() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByBookerIdOrderByStartDesc(user1.getId(), pageable))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user1.getId(), State.ALL, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdOrderByStartDesc(user1.getId(), pageable);
+        }
+
+        @Test
+        public void shouldGetCurrentIfBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(any(), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user2.getId(), State.CURRENT, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(any(), any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetCurrentEmptyIfNotBooker() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(any(), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user1.getId(), State.CURRENT, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(any(), any(), any(), any());
+        }
+
+        @Test
+        public void shouldGetPastIfBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByBookerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(any(), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user2.getId(), State.PAST, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(any(), any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetPastEmptyIfNotBooker() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByBookerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(any(), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user1.getId(), State.PAST, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(any(), any(), any(), any());
+        }
+
+        @Test
+        public void shouldGetFutureIfBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByBookerIdAndStartAfterOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user2.getId(), State.FUTURE, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndStartAfterOrderByStartDesc(any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetFutureEmptyIfNotBooker() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByBookerIdAndStartAfterOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user1.getId(), State.FUTURE, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndStartAfterOrderByStartDesc(any(), any(), any());
+        }
+
+        @Test
+        public void shouldGetWaitingIfBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByBookerIdAndStatusEqualsOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user2.getId(), State.WAITING, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndStatusEqualsOrderByStartDesc(any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetWaitingEmptyIfNotBooker() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByBookerIdAndStatusEqualsOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user1.getId(), State.WAITING, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndStatusEqualsOrderByStartDesc(any(), any(), any());
+        }
+
+        @Test
+        public void shouldGetRejectedIfBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByBookerIdAndStatusEqualsOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user2.getId(), State.REJECTED, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndStatusEqualsOrderByStartDesc(any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetRejectedEmptyIfNotBooker() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByBookerIdAndStatusEqualsOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByBookerId(user1.getId(), State.REJECTED, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByBookerIdAndStatusEqualsOrderByStartDesc(any(), any(), any());
         }
     }
 
-    @Test
-    public void approveBookingWhenUserIsNotOwner() {
+    @Nested
+    class GetAllByOwnerId {
+        @Test
+        public void shouldGetAllIfOwner() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByItemOwnerIdOrderByStartDesc(user1.getId(), pageable))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        var savedBooking = bookingService.createBooking(user2.getId(), booking1Dto);
-        assertThatThrownBy(
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user1.getId(), State.ALL, pageable);
 
-                () -> bookingService.approveBooking(user2.getId(), savedBooking.getId(), true)
+            assertEquals(1, results.size());
 
-        ).isInstanceOf(NullPointerException.class);
-    }
+            BookingResponseDto result = results.get(0);
 
-    @Test
-    public void getBookingWhenBookingNotFound() {
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdOrderByStartDesc(user1.getId(), pageable);
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
+        @Test
+        public void shouldGetAllEmptyIfNotBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByItemOwnerIdOrderByStartDesc(user2.getId(), pageable))
+                    .thenReturn(new PageImpl<>(List.of()));
 
-        bookingService.createBooking(user2.getId(), booking1Dto);
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user2.getId(), State.ALL, pageable);
 
-        try {
-            bookingService.getBookingByIdForOwnerAndBooker(99L, user2.getId());
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-            assertThat(e.getReason()).isEqualTo("Booking not found");
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdOrderByStartDesc(user2.getId(), pageable);
+        }
+
+        @Test
+        public void shouldGetCurrentIfOwner() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByItemOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(any(), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user1.getId(), State.CURRENT, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(any(), any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetCurrentEmptyIfNotBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByItemOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(any(), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user2.getId(), State.CURRENT, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(any(), any(), any(), any());
+        }
+
+        @Test
+        public void shouldGetPastIfOwner() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByItemOwnerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(any(), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user1.getId(), State.PAST, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(any(), any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetPastEmptyIfNotBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByItemOwnerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(any(), any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user2.getId(), State.PAST, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(any(), any(), any(), any());
+        }
+
+        @Test
+        public void shouldGetFutureIfOwner() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByItemOwnerIdAndStartAfterOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user1.getId(), State.FUTURE, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndStartAfterOrderByStartDesc(any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetFutureEmptyIfNotBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByItemOwnerIdAndStartAfterOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user2.getId(), State.FUTURE, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndStartAfterOrderByStartDesc(any(), any(), any());
+        }
+
+        @Test
+        public void shouldGetWaitingIfOwner() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByItemOwnerIdAndStatusEqualsOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user1.getId(), State.WAITING, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndStatusEqualsOrderByStartDesc(any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetWaitingEmptyIfNotBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByItemOwnerIdAndStatusEqualsOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user2.getId(), State.WAITING, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndStatusEqualsOrderByStartDesc(any(), any(), any());
+        }
+
+        @Test
+        public void shouldGetRejectedIfOwner() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(bookingRepository.findByItemOwnerIdAndStatusEqualsOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of(booking)));
+            when(bookingMapper.bookingToBookingResponseDto(booking)).thenReturn(bookingResponseDto);
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user1.getId(), State.REJECTED, pageable);
+
+            assertEquals(1, results.size());
+
+            BookingResponseDto result = results.get(0);
+
+            checkBookingResponseDto(booking, result);
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndStatusEqualsOrderByStartDesc(any(), any(), any());
+            verify(bookingMapper, times(1)).bookingToBookingResponseDto(booking);
+        }
+
+        @Test
+        public void shouldGetRejectedEmptyIfNotBooker() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingRepository.findByItemOwnerIdAndStatusEqualsOrderByStartDesc(any(), any(), any()))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            List<BookingResponseDto> results = bookingService.getAllByOwnerId(user2.getId(), State.REJECTED, pageable);
+
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingRepository, times(1))
+                    .findByItemOwnerIdAndStatusEqualsOrderByStartDesc(any(), any(), any());
         }
     }
 
-    @Test
-    public void getBookingWhenUserIsNotOwnerOrBooker() {
+    @Nested
+    class Create {
+        @Test
+        public void shouldCreate() {
+            when(itemService.getItemById(bookingRequestDto.getItemId())).thenReturn(item1);
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(bookingMapper.requestDtoToBooking(bookingRequestDto, item1, user2, Status.WAITING))
+                    .thenReturn(booking);
 
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        var savedBooking = bookingService.createBooking(user2.getId(), booking1Dto);
-        assertThatThrownBy(
+            bookingService.createBooking(user2.getId(), bookingRequestDto);
 
-                () -> bookingService.getBookingByIdForOwnerAndBooker(savedBooking.getId(), 10L)
+            verify(itemService, times(1)).getItemById(bookingRequestDto.getItemId());
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(bookingMapper, times(1))
+                    .requestDtoToBooking(bookingRequestDto, item1, user2, Status.WAITING);
+            verify(bookingRepository, times(1)).save(bookingArgumentCaptor.capture());
 
-        ).isInstanceOf(NullPointerException.class);
-    }
+            Booking savedBooking = bookingArgumentCaptor.getValue();
 
-    @Test
-    public void getAllBookingForUserWhenStateIsAll() {
+            assertEquals(booking, savedBooking);
+            assertEquals(booking.getId(), savedBooking.getId());
+            assertEquals(booking.getStatus(), savedBooking.getStatus());
+            assertEquals(booking.getStart(), savedBooking.getStart());
+            assertEquals(booking.getEnd(), savedBooking.getEnd());
+            assertEquals(booking.getBooker().getId(), savedBooking.getBooker().getId());
+        }
 
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
+        @Test
+        public void shouldThrowExceptionIfEndIsBeforeStart() {
+            BookingException exception = assertThrows(BookingException.class,
+                    () -> bookingService.createBooking(user2.getId(), bookingRequestDtoWrongDate));
+            assertEquals("Недопустимое время брони.", exception.getMessage());
+            verify(bookingRepository, never()).save(any());
+        }
 
-        BookingListDto findBookingList = bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "ALL");
+        @Test
+        public void shouldThrowExceptionIfItemIsNotAvailable() {
+            when(itemService.getItemById(bookingRequestDto.getItemId())).thenReturn(itemIsNoAvailable);
 
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            assertThat(findBookingList.getBookings().size()).isEqualTo(10);
+            BookingException exception = assertThrows(BookingException.class,
+                    () -> bookingService.createBooking(user2.getId(), bookingRequestDto));
+            assertEquals("Предмет недоступен для бронирования.", exception.getMessage());
+            verify(itemService, times(1)).getItemById(bookingRequestDto.getItemId());
+            verify(bookingRepository, never()).save(any());
+        }
 
-            List<Long> bookingIds = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
+        @Test
+        public void shouldThrowExceptionIfBookingByOwner() {
+            when(itemService.getItemById(bookingRequestDto.getItemId())).thenReturn(item1);
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
 
-            List<Long> expectedIds = Arrays.asList(
-                    futureBookingForItem2.getId(),
-                    futureBookingForItem1.getId(),
-                    rejectedBookingForItem2.getId(),
-                    rejectedBookingForItem1.getId(),
-                    waitingBookingForItem2.getId(),
-                    waitingBookingForItem1.getId(),
-                    currentBookingForItem2.getId(),
-                    currentBookingForItem1.getId(),
-                    pastBookingForItem2.getId(),
-                    pastBookingForItem1.getId()
-            );
-
-            assertThat(bookingIds).containsExactlyElementsOf(expectedIds);
-
-            assertThat(item1.equals(item2)).isFalse();
+            NotFoundException exception = assertThrows(NotFoundException.class,
+                    () -> bookingService.createBooking(user1.getId(), bookingRequestDto));
+            assertEquals("Владелец не может бронировать собственную вещь.", exception.getMessage());
+            verify(itemService, times(1)).getItemById(bookingRequestDto.getItemId());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(bookingRepository, never()).save(any());
         }
     }
 
-    @Test
-    public void getAllBookingsForItemsUser() {
+    @Nested
+    class Update {
+        @Test
+        public void shouldApprove() {
+            when(bookingRepository.findById(bookingIsWaiting1.getId())).thenReturn(Optional.of(bookingIsWaiting1));
 
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
+            bookingService.approveBooking(user1.getId(), bookingIsWaiting1.getId(), true);
 
-        BookingListDto findBookingList = bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "ALL");
+            verify(bookingRepository, times(1)).findById(bookingIsWaiting1.getId());
+            verify(bookingRepository, times(1)).save(bookingArgumentCaptor.capture());
 
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            assertThat(findBookingList.getBookings().size()).isEqualTo(5);
+            Booking savedBooking = bookingArgumentCaptor.getValue();
 
-            List<Long> bookingIds = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-
-            List<Long> expectedIds = Arrays.asList(
-                    futureBookingForItem1.getId(),
-                    rejectedBookingForItem1.getId(),
-                    waitingBookingForItem1.getId(),
-                    currentBookingForItem1.getId(),
-                    pastBookingForItem1.getId()
-            );
-
-            assertThat(bookingIds).containsExactlyElementsOf(expectedIds);
+            assertEquals(Status.APPROVED, savedBooking.getStatus());
         }
-    }
 
-    @Test
-    public void getAllBookingsForUserWhenStateIsCurrent() {
+        @Test
+        public void shouldReject() {
+            when(bookingRepository.findById(bookingIsWaiting1.getId())).thenReturn(Optional.of(bookingIsWaiting1));
 
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
+            bookingService.approveBooking(user1.getId(), bookingIsWaiting1.getId(), false);
 
-        BookingListDto findBookingList = bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "CURRENT");
+            verify(bookingRepository, times(1)).findById(bookingIsWaiting1.getId());
+            verify(bookingRepository, times(1)).save(bookingArgumentCaptor.capture());
 
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            assertThat(findBookingList.getBookings().size()).isEqualTo(2);
+            Booking savedBooking = bookingArgumentCaptor.getValue();
 
-            List<Long> bookingIds = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-
-            List<Long> expectedIds = Arrays.asList(currentBookingForItem2.getId(), currentBookingForItem1.getId());
-
-            assertThat(bookingIds).containsExactlyElementsOf(expectedIds);
+            assertEquals(Status.REJECTED, savedBooking.getStatus());
         }
-    }
 
-    @Test
-    public void getAllBookingsForItemsUserWhenStateIsCurrent() {
+        @Test
+        public void shouldThrowExceptionIfUpdateNotOwner() {
+            when(bookingRepository.findById(booking.getId())).thenReturn(Optional.of(booking));
 
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        BookingListDto findBookingList = bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "CURRENT");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-
-            List<Long> bookingIds = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-
-            assertThat(bookingIds).singleElement().isEqualTo(currentBookingForItem1.getId());
+            NotFoundException exception = assertThrows(NotFoundException.class,
+                    () -> bookingService.approveBooking(user2.getId(), booking.getId(), false));
+            assertEquals("Изменение статуса бронирования доступно только владельцу.", exception.getMessage());
+            verify(bookingRepository, times(1)).findById(booking.getId());
+            verify(bookingRepository, never()).save(any());
         }
-    }
 
-    @Test
-    public void getAllBookingsForUserWhenStateIsPast() {
+        @Test
+        public void shouldThrowExceptionIfAlreadyUpdateBefore() {
+            when(bookingRepository.findById(booking.getId())).thenReturn(Optional.of(booking));
 
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        BookingListDto findBookingList = bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "PAST");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-
-            List<Long> bookingIds = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-
-            assertThat(bookingIds.size()).isEqualTo(2);
-            assertThat(bookingIds).first().isEqualTo(pastBookingForItem2.getId());
-            assertThat(bookingIds).last().isEqualTo(pastBookingForItem1.getId());
+            BookingException exception = assertThrows(BookingException.class,
+                    () -> bookingService.approveBooking(user1.getId(), booking.getId(), false));
+            assertEquals("Ответ по бронированию уже дан.", exception.getMessage());
+            verify(bookingRepository, times(1)).findById(booking.getId());
+            verify(bookingRepository, never()).save(any());
         }
-    }
-
-    @Test
-    public void getAllBookingsForItemsUserWhenStateIsPast() {
-
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        var findBookingList = bookingService
-                .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "PAST");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            List<Long> ids = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-            assertThat(ids).singleElement().isEqualTo(pastBookingForItem1.getId());
-        }
-    }
-
-    @Test
-    public void getAllBookingsForUserWhenStateIsFuture() {
-
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        var findBookingList = bookingService
-                .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "Future");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            assertThat(findBookingList.getBookings().size()).isEqualTo(6);
-            List<Long> ids = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-            assertThat(ids).first().isEqualTo(futureBookingForItem2.getId());
-            assertThat(ids).element(1).isEqualTo(futureBookingForItem1.getId());
-            assertThat(ids).element(2).isEqualTo(rejectedBookingForItem2.getId());
-            assertThat(ids).element(3).isEqualTo(rejectedBookingForItem1.getId());
-            assertThat(ids).element(4).isEqualTo(waitingBookingForItem2.getId());
-            assertThat(ids).element(5).isEqualTo(waitingBookingForItem1.getId());
-        }
-    }
-
-    @Test
-    public void getAllBookingsForItemsUserWhenStateIsFuture() {
-
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        var findBookingList = bookingService
-                .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "Future");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            assertThat(findBookingList.getBookings().size()).isEqualTo(3);
-            List<Long> ids = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-            assertThat(ids).first().isEqualTo(futureBookingForItem1.getId());
-            assertThat(ids).element(1).isEqualTo(rejectedBookingForItem1.getId());
-            assertThat(ids).element(2).isEqualTo(waitingBookingForItem1.getId());
-        }
-    }
-
-    @Test
-    public void getAllBookingsForUserWhenStateIsWaiting() {
-
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        var findBookingList = bookingService
-                .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "waiting");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            assertThat(findBookingList.getBookings().size()).isEqualTo(2);
-            List<Long> ids = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-            assertThat(ids).first().isEqualTo(waitingBookingForItem2.getId());
-            assertThat(ids).last().isEqualTo(waitingBookingForItem1.getId());
-        }
-    }
-
-    @Test
-    public void getAllBookingsForItemsUserWhenStateIsWaiting() {
-
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        var findBookingList = bookingService
-                .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "waiting");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            List<Long> ids = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-            assertThat(ids).singleElement().isEqualTo(waitingBookingForItem1.getId());
-        }
-    }
-
-    @Test
-    public void getAllBookingsForUserWhenStateIsRejected() {
-
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        var findBookingList = bookingService
-                .getAllBookingsForUser(PageRequest.of(0, 10), user2.getId(), "rejected");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            List<Long> ids = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-            assertThat(ids).first().isEqualTo(rejectedBookingForItem2.getId());
-            assertThat(ids).last().isEqualTo(rejectedBookingForItem1.getId());
-        }
-    }
-
-    @Test
-    public void getAllBookingsForItemsUserWhenStateIsRejected() {
-
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        var findBookingList = bookingService
-                .getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "rejected");
-
-        if (findBookingList != null && findBookingList.getBookings() != null) {
-            List<Long> ids = findBookingList.getBookings().stream()
-                    .map(BookingDtoResponse::getId)
-                    .collect(Collectors.toList());
-            assertThat(ids).singleElement().isEqualTo(rejectedBookingForItem1.getId());
-        }
-    }
-
-    @Test
-    public void getBookingListWithUnknownState() {
-
-        userRepository.save(user1);
-
-        try {
-            bookingService.getAllBookingsForUser(PageRequest.of(0, 10), user1.getId(), "qwe");
-
-        } catch (StateException e) {
-            assertThat(e).isInstanceOf(StateException.class);
-            assertThat(e.getMessage()).isEqualTo("Your expected error message");
-        }
-    }
-
-    @Test
-    public void getAllBookingsForUserWhenUserNotFound() {
-
-        userRepository.save(user1);
-
-        try {
-            bookingService.getAllBookingsForUser(PageRequest.of(0, 10), 50L, "ALL");
-
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-            assertThat(e.getReason()).isEqualTo("User not found");
-        }
-    }
-
-    @Test
-    public void getAllBookingsForItemsUserWhenUserNotFound() {
-
-        initializationItem2AndBookings();
-        userRepository.save(user1);
-        userRepository.save(user2);
-        itemRepository.save(item1);
-        itemRepository.save(item2);
-        addBookingsInDb();
-
-        try {
-            bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), 50L, "ALL");
-
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-            assertThat(e.getReason()).isEqualTo("User not found");
-        }
-    }
-
-    @Test
-    public void getAllBookingsForItemsUserWhenUserNotExistingBooking() {
-
-        userRepository.save(user1);
-
-        try {
-            bookingService.getAllBookingsForItemsUser(PageRequest.of(0, 10), user1.getId(), "ALL");
-
-        } catch (ResponseStatusException e) {
-            assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND);
-            assertThat(e.getReason()).isEqualTo("User not found");
-        }
-    }
-
-    @SneakyThrows
-    private void initializationItem2AndBookings() {
-
-        currentBookingForItem1 = new Booking();
-        currentBookingForItem1.setStart(LocalDateTime.now().minusDays(1));
-        currentBookingForItem1.setEnd(LocalDateTime.now().plusDays(1));
-        currentBookingForItem1.setItem(item1);
-        currentBookingForItem1.setBooker(user2);
-        currentBookingForItem1.setStatus(Status.APPROVED);
-
-        Thread.sleep(50);
-
-        currentBookingForItem2 = new Booking();
-        currentBookingForItem2.setStart(LocalDateTime.now().minusDays(1));
-        currentBookingForItem2.setEnd(LocalDateTime.now().plusDays(1));
-        currentBookingForItem2.setItem(item2);
-        currentBookingForItem2.setBooker(user2);
-        currentBookingForItem2.setStatus(Status.APPROVED);
-
-        Thread.sleep(50);
-
-        pastBookingForItem1 = new Booking();
-        pastBookingForItem1.setStart(LocalDateTime.now().minusDays(2));
-        pastBookingForItem1.setEnd(LocalDateTime.now().minusDays(1));
-        pastBookingForItem1.setItem(item1);
-        pastBookingForItem1.setBooker(user2);
-        pastBookingForItem1.setStatus(Status.APPROVED);
-
-        Thread.sleep(50);
-
-        pastBookingForItem2 = new Booking();
-        pastBookingForItem2.setStart(LocalDateTime.now().minusDays(2));
-        pastBookingForItem2.setEnd(LocalDateTime.now().minusDays(1));
-        pastBookingForItem2.setItem(item2);
-        pastBookingForItem2.setBooker(user2);
-        pastBookingForItem2.setStatus(Status.APPROVED);
-
-        Thread.sleep(50);
-
-        futureBookingForItem1 = new Booking();
-        futureBookingForItem1.setStart(LocalDateTime.now().plusDays(1));
-        futureBookingForItem1.setEnd(LocalDateTime.now().plusDays(2));
-        futureBookingForItem1.setItem(item1);
-        futureBookingForItem1.setBooker(user2);
-        futureBookingForItem1.setStatus(Status.APPROVED);
-
-        Thread.sleep(50);
-
-        futureBookingForItem2 = new Booking();
-        futureBookingForItem2.setStart(LocalDateTime.now().plusDays(1));
-        futureBookingForItem2.setEnd(LocalDateTime.now().plusDays(2));
-        futureBookingForItem2.setItem(item2);
-        futureBookingForItem2.setBooker(user2);
-        futureBookingForItem2.setStatus(Status.APPROVED);
-
-        Thread.sleep(50);
-
-        waitingBookingForItem1 = new Booking();
-        waitingBookingForItem1.setStart(LocalDateTime.now().plusHours(1));
-        waitingBookingForItem1.setEnd(LocalDateTime.now().plusHours(2));
-        waitingBookingForItem1.setItem(item1);
-        waitingBookingForItem1.setBooker(user2);
-        waitingBookingForItem1.setStatus(Status.WAITING);
-
-        Thread.sleep(50);
-
-        waitingBookingForItem2 = new Booking();
-        waitingBookingForItem2.setStart(LocalDateTime.now().plusHours(1));
-        waitingBookingForItem2.setEnd(LocalDateTime.now().plusHours(2));
-        waitingBookingForItem2.setItem(item2);
-        waitingBookingForItem2.setBooker(user2);
-        waitingBookingForItem2.setStatus(Status.WAITING);
-
-        Thread.sleep(50);
-
-        rejectedBookingForItem1 = new Booking();
-        rejectedBookingForItem1.setStart(LocalDateTime.now().plusHours(1));
-        rejectedBookingForItem1.setEnd(LocalDateTime.now().plusHours(2));
-        rejectedBookingForItem1.setItem(item1);
-        rejectedBookingForItem1.setBooker(user2);
-        rejectedBookingForItem1.setStatus(Status.REJECTED);
-
-        Thread.sleep(50);
-
-        rejectedBookingForItem2 = new Booking();
-        rejectedBookingForItem2.setStart(LocalDateTime.now().plusHours(1));
-        rejectedBookingForItem2.setEnd(LocalDateTime.now().plusHours(2));
-        rejectedBookingForItem2.setItem(item2);
-        rejectedBookingForItem2.setBooker(user2);
-        rejectedBookingForItem2.setStatus(Status.REJECTED);
-    }
-
-    @SneakyThrows
-    private void addBookingsInDb() {
-
-        bookingRepository.save(currentBookingForItem1);
-        bookingRepository.save(currentBookingForItem2);
-        bookingRepository.save(pastBookingForItem1);
-        bookingRepository.save(pastBookingForItem2);
-        bookingRepository.save(futureBookingForItem1);
-        bookingRepository.save(futureBookingForItem2);
-        bookingRepository.save(waitingBookingForItem1);
-        bookingRepository.save(waitingBookingForItem2);
-        bookingRepository.save(rejectedBookingForItem1);
-        bookingRepository.save(rejectedBookingForItem2);
     }
 }

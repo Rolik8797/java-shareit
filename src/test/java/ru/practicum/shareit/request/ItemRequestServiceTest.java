@@ -1,203 +1,256 @@
 package ru.practicum.shareit.request;
 
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
 
+
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.http.HttpStatus;
 
-import org.springframework.web.server.ResponseStatusException;
-import ru.practicum.shareit.item.ItemService;
+import org.springframework.data.domain.Pageable;
+import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.item.ItemMapperImpl;
+import ru.practicum.shareit.item.ItemRepository;
 import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.item.dto.ItemDtoResponse;
-import ru.practicum.shareit.request.dto.ItemRequestDto;
-import ru.practicum.shareit.request.dto.ItemRequestDtoResponse;
 
+import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.markers.Constants;
+import ru.practicum.shareit.request.dto.ItemRequestAddDto;
+import ru.practicum.shareit.request.dto.ItemRequestDto;
+
+import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
 import ru.practicum.shareit.request.model.ItemRequest;
-import ru.practicum.shareit.user.UserRepository;
+
+import ru.practicum.shareit.user.UserService;
 import ru.practicum.shareit.user.model.User;
 
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.*;
 
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.when;
+@ExtendWith(MockitoExtension.class)
 public class ItemRequestServiceTest {
+    private final int from = Integer.parseInt(Constants.PAGE_DEFAULT_FROM);
+    private final int size = Integer.parseInt(Constants.PAGE_DEFAULT_SIZE);
+    private final Pageable pageable = PageRequest.of(from / size, size);
+    private final LocalDateTime dateTime = LocalDateTime.of(2023, 1, 1, 10, 0, 0);
+    private final User user1 = User.builder()
+            .id(1L)
+            .name("Test user 1")
+            .email("tester1@ya.ru")
+            .build();
+    private final User user2 = User.builder()
+            .id(2L)
+            .name("Test user 2")
+            .email("tester2@ya.ru")
+            .build();
+    private final Item item1 = Item.builder()
+            .id(1L)
+            .name("item name")
+            .description("item description")
+            .available(true)
+            .owner(user1)
+            .requestId(1L)
+            .build();
+    private final ItemDto itemDto1 = ItemDto.builder()
+            .id(item1.getId())
+            .name(item1.getName())
+            .description(item1.getDescription())
+            .available(item1.getAvailable())
+            .ownerId(item1.getOwner().getId())
+            .requestId(item1.getRequestId())
+            .build();
+    private final ItemRequestAddDto item1RequestCreateDto = ItemRequestAddDto.builder()
+            .description("item description")
+            .build();
+    private final ItemRequest itemRequest1 = ItemRequest.builder()
+            .id(1L)
+            .description("itemRequest1 description")
+            .requestorId(user2)
+            .created(dateTime)
+            .build();
+    private final ItemRequestExtendedDto itemRequestExtendedDto1 = ItemRequestExtendedDto.builder()
+            .id(itemRequest1.getId())
+            .description(itemRequest1.getDescription())
+            .created(itemRequest1.getCreated())
+            .items(List.of(itemDto1))
+            .build();
     @Mock
-    private ItemRequestService itemRequestService;
+    private UserService userService;
     @Mock
-    private UserRepository userRepository;
+    private ItemRepository itemRepository;
     @Mock
-    private ItemService itemService;
-    private User user1;
-    private ItemRequestDto itemRequestDto;
+    private ItemRequestRepository itemRequestRepository;
+    @Mock
+    private ItemRequestMapperImpl itemRequestMapper;
+    @Mock
+    private ItemMapperImpl itemMapper;
+    @InjectMocks
+    private ItemRequestServiceImpl itemRequestService;
+    @Captor
+    private ArgumentCaptor<ItemRequest> itemRequestArgumentCaptor;
 
-    @BeforeEach
-    public void setUp() {
+    private void checkItemRequestExtendedDto(ItemRequest itemRequest1, ItemRequestExtendedDto itemRequestExtendedDto) {
+        assertEquals(itemRequest1.getId(), itemRequestExtendedDto.getId());
+        assertEquals(itemRequest1.getDescription(), itemRequestExtendedDto.getDescription());
+        assertEquals(itemRequest1.getCreated(), itemRequestExtendedDto.getCreated());
 
-        user1 = new User();
-        user1.setName("test name");
-        user1.setEmail("test@test.ru");
+        Item item = item1;
+        ItemDto resultItemDto = itemRequestExtendedDto.getItems().get(0);
 
-        itemRequestDto = ItemRequestDto.builder()
-                .description("test request description")
-                .build();
-
-        MockitoAnnotations.initMocks(this);
+        assertEquals(item.getId(), resultItemDto.getId());
+        assertEquals(item.getName(), resultItemDto.getName());
+        assertEquals(item.getAvailable(), resultItemDto.getAvailable());
+        assertEquals(item.getDescription(), resultItemDto.getDescription());
+        assertEquals(item.getOwner().getId(), resultItemDto.getOwnerId());
     }
 
-    @Test
-    public void createItemRequest() {
+    @Nested
+    class Create {
+        @Test
+        public void shouldCreate() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(itemRequestMapper.toItemRequest(any(), any(), any())).thenCallRealMethod();
+            when(itemRequestRepository.save(any())).thenReturn(itemRequest1);
+            when(itemRequestMapper.toItemRequestDto(any())).thenCallRealMethod();
 
-        userRepository.save(user1);
+            ItemRequestDto result = itemRequestService.createItemRequest(user2.getId(), item1RequestCreateDto);
 
-        ItemDto item1Dto = ItemDto.builder()
-                .name("item test")
-                .description("item test description")
-                .available(true)
-                .build();
+            verify(itemRequestRepository, times(1)).save(itemRequestArgumentCaptor.capture());
+            verify(itemRequestMapper, times(1)).toItemRequest(any(), any(), any());
 
-        ItemDtoResponse savedItem = ItemDtoResponse.builder()
-                .id(1L)
-                .name("item test")
-                .description("item test description")
-                .available(true)
-                .build();
+            ItemRequest savedItemRequest = itemRequestArgumentCaptor.getValue();
+            savedItemRequest.setId(result.getId());
 
-        when(itemService.createItem(eq(item1Dto), eq(user1.getId()))).thenReturn(savedItem);
-        var createdItem = itemService.createItem(item1Dto, user1.getId());
-
-        when(itemService.getItemByItemId(eq(user1.getId()), eq(createdItem.getId()))).thenReturn(savedItem);
-        var findItem = itemService.getItemByItemId(user1.getId(), createdItem.getId());
-
-        assertThat(createdItem).usingRecursiveComparison().ignoringFields("comments").isEqualTo(findItem);
+            assertEquals(itemRequest1, savedItemRequest);
+            assertEquals(item1RequestCreateDto.getDescription(), savedItemRequest.getDescription());
+            assertEquals(user2.getId(), savedItemRequest.getRequestorId().getId());
+            assertEquals(user2.getName(), savedItemRequest.getRequestorId().getName());
+            assertEquals(user2.getEmail(), savedItemRequest.getRequestorId().getEmail());
+            assertNotNull(savedItemRequest.getCreated());
+        }
     }
 
-    @Test
-    public void createItemRequestWhenRequesterNotFound() {
+    @Nested
+    class GetById {
+        @Test
+        public void shouldGet() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(itemRequestRepository.findById(1L)).thenReturn(Optional.of(itemRequest1));
+            when(itemRepository.findByRequestId(1L)).thenReturn(List.of(item1));
+            when(itemMapper.toItemDto(any())).thenCallRealMethod();
+            when(itemRequestMapper.toItemRequestExtendedDto(any(), any())).thenCallRealMethod();
 
-        userRepository.save(user1);
+            ItemRequestExtendedDto result = itemRequestService.getById(user2.getId(), 1L);
 
-        when(itemRequestService.createItemRequest(eq(itemRequestDto), eq(99L)))
-                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            checkItemRequestExtendedDto(itemRequest1, result);
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(itemRequestRepository, times(1)).findById(1L);
+            verify(itemRepository, times(1)).findByRequestId(1L);
+            verify(itemMapper, times(1)).toItemDto(any());
+            verify(itemRequestMapper, times(1)).toItemRequestExtendedDto(any(), any());
+        }
 
-        assertThatThrownBy(() -> itemRequestService.createItemRequest(itemRequestDto, 99L))
-                .isInstanceOf(ResponseStatusException.class);
+        @Test
+        public void shouldThrowExceptionIfItemRequestIdNotFound() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(itemRequestRepository.findById(1L)).thenReturn(Optional.empty());
+
+            NotFoundException exception = assertThrows(NotFoundException.class,
+                    () -> itemRequestService.getById(user2.getId(), 1L));
+            assertEquals("Запроса вещи с таким id не существует.", exception.getMessage());
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(itemRequestRepository, times(1)).findById(1L);
+        }
     }
 
-    @Test
-    public void getPrivateRequest() {
-        User user1 = new User();
-        user1.setName("test name");
-        user1.setEmail("test@test.ru");
+    @Nested
+    class GetByRequestorId {
+        @Test
+        public void shouldGet() {
+            when(userService.getUserById(user2.getId())).thenReturn(user2);
+            when(itemRequestRepository.findByRequestorId_IdOrderByCreatedAsc(user2.getId()))
+                    .thenReturn(List.of(itemRequest1));
+            when(itemRepository.findByRequestIdIn(List.of(1L))).thenReturn(List.of(item1));
+            when(itemMapper.toItemDto(any())).thenCallRealMethod();
+            when(itemRequestMapper.toItemRequestExtendedDto(any(), any())).thenCallRealMethod();
 
-        User user2 = new User();
-        user2.setName("test name2");
-        user2.setEmail("test2@test.ru");
+            List<ItemRequestExtendedDto> results = itemRequestService.getByRequestorId(user2.getId());
 
-        when(userRepository.save(user1)).thenReturn(user1);
-        when(userRepository.save(user2)).thenReturn(user2);
+            assertEquals(1, results.size());
 
-        ItemRequest savedRequest = new ItemRequest();
-        savedRequest.setId(1L);
-        savedRequest.setDescription("test request description");
-        savedRequest.setCreated(LocalDateTime.now());
+            ItemRequestExtendedDto result = results.get(0);
 
-        ItemRequestDtoResponse mockItemRequest = ItemRequestDtoResponse.builder()
-                .id(1L)
-                .description("test request description")
-                .created(LocalDateTime.now())
-                .build();
+            checkItemRequestExtendedDto(itemRequest1, result);
+            verify(userService, times(1)).getUserById(user2.getId());
+            verify(itemRequestRepository, times(1))
+                    .findByRequestorId_IdOrderByCreatedAsc(user2.getId());
+            verify(itemRepository, times(1)).findByRequestIdIn(List.of(1L));
+            verify(itemMapper, times(1)).toItemDto(any());
+            verify(itemRequestMapper, times(1)).toItemRequestExtendedDto(any(), any());
+        }
 
-        when(itemRequestService.createItemRequest(eq(itemRequestDto), eq(user2.getId()))).thenReturn(mockItemRequest);
+        @Test
+        public void shouldGetEmptyIfNotItemRequests() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(itemRequestRepository.findByRequestorId_IdOrderByCreatedAsc(user1.getId()))
+                    .thenReturn(List.of());
 
-        ItemRequestDtoResponse privateRequest = itemRequestService.createItemRequest(itemRequestDto, user2.getId());
+            List<ItemRequestExtendedDto> results = itemRequestService.getByRequestorId(user1.getId());
 
-        LocalDateTimeComparator comparator = new LocalDateTimeComparator(1L);
-        assertThat(privateRequest)
-                .usingComparatorForFields(comparator, "created")
-                .usingRecursiveComparison();
-
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(itemRequestRepository, times(1))
+                    .findByRequestorId_IdOrderByCreatedAsc(user1.getId());
+        }
     }
 
-    @Test
-    public void getPrivateRequestWhenRequesterNotExistingRequests() {
-        userRepository.save(user1);
+    @Nested
+    class GetAll {
+        @Test
+        public void shouldGetNotSelfRequests() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(itemRequestRepository.findByRequestorId_IdNot(user1.getId(), pageable))
+                    .thenReturn(new PageImpl<>(List.of(itemRequest1)));
+            when(itemRequestMapper.toItemRequestExtendedDto(any(), any())).thenCallRealMethod();
 
-        when(itemRequestService.getPrivateRequests(eq(PageRequest.of(0, 2)), eq(55L)))
-                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+            List<ItemRequestExtendedDto> results = itemRequestService.getAll(user1.getId(), pageable);
 
-        assertThatThrownBy(() -> itemRequestService.getPrivateRequests(PageRequest.of(0, 2), 55L))
-                .isInstanceOf(ResponseStatusException.class);
-    }
 
-    @Test
-    public void getOtherRequests() {
+            assertEquals(1, results.size());
 
-        User user1 = new User();
-        user1.setName("test name 1");
-        user1.setEmail("test1@test.com");
+            ItemRequestExtendedDto result = results.get(0);
+            result.setItems(itemRequestExtendedDto1.getItems());
 
-        User user2 = new User();
-        user2.setName("test name 2");
-        user2.setEmail("test2@test.com");
+            checkItemRequestExtendedDto(itemRequest1, result);
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(itemRequestRepository, times(1))
+                    .findByRequestorId_IdNot(user1.getId(), pageable);
+            verify(itemRequestMapper, times(1)).toItemRequestExtendedDto(any(), any());
+        }
 
-        when(userRepository.save(user1)).thenReturn(user1);
-        when(userRepository.save(user2)).thenReturn(user2);
+        @Test
+        public void shouldGetEmptyIfNotRequests() {
+            when(userService.getUserById(user1.getId())).thenReturn(user1);
+            when(itemRequestRepository.findByRequestorId_IdNot(user1.getId(), pageable))
+                    .thenReturn(new PageImpl<>(List.of()));
 
-        ItemRequestDtoResponse mockItemRequest = ItemRequestDtoResponse.builder()
-                .id(1L)
-                .description("test request description")
-                .created(LocalDateTime.now())
-                .build();
+            List<ItemRequestExtendedDto> results = itemRequestService.getAll(user1.getId(), pageable);
 
-        when(itemRequestService.createItemRequest(eq(itemRequestDto), eq(user1.getId()))).thenReturn(mockItemRequest);
-
-        ItemRequestDtoResponse otherRequest = itemRequestService.createItemRequest(itemRequestDto, user1.getId());
-
-        LocalDateTimeComparator comparator = new LocalDateTimeComparator(1L);
-        assertThat(otherRequest)
-                .usingComparatorForFields(comparator, "created")
-                .usingRecursiveComparison();
-    }
-
-    @Test
-    public void getOtherRequestsWhenRequesterNotFound() {
-
-        userRepository.save(user1);
-        itemRequestService.createItemRequest(itemRequestDto, user1.getId());
-
-        when(itemRequestService.getOtherRequests(PageRequest.of(0, 2), 50L))
-                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        assertThatThrownBy(() -> itemRequestService.getOtherRequests(PageRequest.of(0, 2), 50L))
-                .isInstanceOf(ResponseStatusException.class);
-    }
-
-    @Test
-    public void getItemRequestWhenUserNotFound() {
-
-        userRepository.save(user1);
-        var savedRequest = itemRequestService.createItemRequest(itemRequestDto, user1.getId());
-        assertThatThrownBy(
-
-                () -> itemRequestService.getItemRequest(50L, savedRequest.getId())
-
-        ).isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    public void getItemRequestWhenRequestNotFound() {
-
-        userRepository.save(user1);
-        var savedRequest = itemRequestService.createItemRequest(itemRequestDto, user1.getId());
-        assertThatThrownBy(
-
-                () -> itemRequestService.getItemRequest(savedRequest.getId(), 50L)
-
-        ).isInstanceOf(NullPointerException.class);
+            assertTrue(results.isEmpty());
+            verify(userService, times(1)).getUserById(user1.getId());
+            verify(itemRequestRepository, times(1))
+                    .findByRequestorId_IdNot(user1.getId(), pageable);
+        }
     }
 }

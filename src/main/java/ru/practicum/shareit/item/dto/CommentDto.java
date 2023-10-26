@@ -1,19 +1,23 @@
 package ru.practicum.shareit.item.dto;
 
+import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.jackson.Jacksonized;
+import lombok.experimental.FieldDefaults;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Size;
+import javax.validation.constraints.NotNull;
 
+import java.time.LocalDateTime;
+
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
 @Setter
 @Builder
-@Jacksonized
 public class CommentDto {
-    @NotBlank(message = "поле text не должно быть пустым")
-    @Size(max = 500, message = "Превышена максимальная длина сообщения")
-    private String text;
+    Long id;
+    String text;
+    @NotNull
+    LocalDateTime created;
+    String authorName;
 }
