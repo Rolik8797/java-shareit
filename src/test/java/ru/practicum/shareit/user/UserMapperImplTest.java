@@ -6,6 +6,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ru.practicum.shareit.user.dto.UserDto;
+
 import ru.practicum.shareit.user.model.User;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,7 +25,7 @@ class UserMapperImplTest {
             .email("t-r1@ya.ru")
             .build();
     @InjectMocks
-    private UserMapper userMapper;
+    private UserMapperImpl userMapper;
 
     @Nested
     class ToUserDto {
