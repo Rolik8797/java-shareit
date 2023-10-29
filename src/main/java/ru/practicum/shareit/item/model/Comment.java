@@ -1,34 +1,52 @@
 package ru.practicum.shareit.item.model;
 
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 import ru.practicum.shareit.user.model.User;
 
 import javax.persistence.*;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
+@Entity
+@Table(name = "comments", schema = "public")
+@FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
 @Setter
 @ToString
-@Table(name = "comments")
-@Entity
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Comment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private long id;
+    Long id;
 
-    private String text;
+    @Column(nullable = false)
+    String text;
 
-    @ToString.Exclude
+    @Column(name = "created_date", nullable = false)
+    LocalDateTime created;
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "item_id")
-    private Item item;
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @JoinColumn(name = "author_id", referencedColumnName = "id", nullable = false)
+    User author;
 
-    @ToString.Exclude
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "author_id")
-    private User author;
+    @Column(name = "item_id")
+    Long itemId;
 
-    private LocalDateTime created;
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Comment)) return false;
+        return id != null && id.equals(((Comment) o).getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, text, created, author, itemId);
+    }
 }

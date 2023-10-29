@@ -1,16 +1,23 @@
 package ru.practicum.shareit.booking.model;
 
-import ru.practicum.shareit.exception.ArgumentException;
+import java.util.Optional;
 
 public enum State {
-    ALL, CURRENT, PAST, FUTURE, WAITING, REJECTED;
 
-    public static State convert(String source) {
-        try {
-            return State.valueOf(source);
-        } catch (Exception e) {
-            String message = String.format("Unknown state: %S", source);
-            throw new ArgumentException(message);
+    ALL,
+    CURRENT,
+    PAST,
+    FUTURE,
+    WAITING,
+    REJECTED;
+
+    public static Optional<State> stringToState(String state) {
+        for (State value : State.values()) {
+            if (value.name().equals(state)) {
+                return Optional.of(value);
+            }
         }
+        return Optional.empty();
     }
+
 }

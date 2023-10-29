@@ -1,46 +1,50 @@
 package ru.practicum.shareit.booking;
 
-import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.model.Status;
 
 import java.time.LocalDateTime;
+
 import java.util.List;
-import java.util.Optional;
+
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
-    List<Booking> findAllByBookerId(long bookerId, Sort sort);
+    Page<Booking> findByBookerIdOrderByStartDesc(Long booker, Pageable pageable);
 
-    List<Booking> findAllByBookerIdAndStatus(long bookerId, Status status, Sort sort);
+    Page<Booking> findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(Long userId, LocalDateTime start,
+                                                                          LocalDateTime end, Pageable pageable);
 
-    List<Booking> findAllByBookerIdAndStartAfter(long bookerId, LocalDateTime localDateTime, Sort sort);
+    Page<Booking> findByBookerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(Long userId, LocalDateTime start,
+                                                                            Status status, Pageable pageable);
 
-    List<Booking> findAllByBookerIdAndEndBefore(long bookerId, LocalDateTime localDateTime, Sort sort);
+    Page<Booking> findByBookerIdAndStartAfterOrderByStartDesc(Long userId, LocalDateTime start, Pageable pageable);
 
-    @Query(value = "select b from Booking b where b.booker.id = ?1 and b.start < ?2 and b.end > ?2")
-    List<Booking> findAllByBookerIdAndStartBeforeAndEndAfter(long bookerId, LocalDateTime localDateTime, Sort sort);
+    Page<Booking> findByBookerIdAndStatusEqualsOrderByStartDesc(Long userId, Status status, Pageable pageable);
 
-    @Query(value = "select b from Booking b where b.item.userId = ?1")
-    List<Booking> findAllByOwnerId(long ownerId, Sort sort);
+    Page<Booking> findByItemOwnerIdOrderByStartDesc(Long booker, Pageable pageable);
 
-    @Query(value = "select b from Booking b where b.item.userId = ?1 and b.status = ?2")
-    List<Booking> findAllByOwnerIdAndStatus(long ownerId, Status status, Sort sort);
+    Page<Booking> findByItemOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(Long userId, LocalDateTime start,
+                                                                             LocalDateTime end, Pageable pageable);
 
-    @Query(value = "select b from Booking b where b.item.userId = ?1 and b.start > ?2")
-    List<Booking> findAllByOwnerIdAndStartAfter(long ownerId, LocalDateTime localDateTime, Sort sort);
+    Page<Booking> findByItemOwnerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(Long userId, LocalDateTime start,
+                                                                               Status status, Pageable pageable);
 
-    @Query(value = "select b from Booking b where b.item.userId = ?1 and b.end < ?2")
-    List<Booking> findAllByOwnerIdAndEndBefore(long ownerId, LocalDateTime localDateTime, Sort sort);
+    Page<Booking> findByItemOwnerIdAndStartAfterOrderByStartDesc(Long userId, LocalDateTime start, Pageable pageable);
 
-    @Query(value = "select b from Booking b where b.item.userId = ?1 and b.start < ?2 and b.end > ?2")
-    List<Booking> findAllByOwnerIdAndStartBeforeAndEndAfter(long bookerId, LocalDateTime localDateTime, Sort sort);
+    Page<Booking> findByItemOwnerIdAndStatusEqualsOrderByStartDesc(Long userId, Status status, Pageable pageable);
 
-    List<Booking> findByItemIdAndStatus(long itemId, Status status, Sort sort);
+    List<Booking> findByItemIdAndStartBeforeAndStatusEqualsOrderByStartDesc(Long userId, LocalDateTime start, Status status);
 
-    Optional<List<Booking>> findAllByItemIdAndBookerIdAndStatus(long itemId, long bookerId, Status status, Sort sort);
+    List<Booking> findByItemIdAndStartAfterAndStatusEqualsOrderByStartAsc(Long userId, LocalDateTime start, Status status);
 
-    List<Booking> findByItemIdAndStatus(long itemId, Status status);
+    List<Booking> findByItemIdAndBookerIdAndEndIsBeforeAndStatusEquals(Long id, Long userId, LocalDateTime end, Status status);
+
+    List<Booking> findByItemIdIn(List<Long> itemIds);
+
+    List<Booking> findByItemId(Long id);
 
 }

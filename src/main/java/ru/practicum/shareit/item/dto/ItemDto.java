@@ -1,25 +1,29 @@
 package ru.practicum.shareit.item.dto;
 
-import lombok.Data;
-import ru.practicum.shareit.booking.dto.BookingDtoShort;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.FieldDefaults;
+import ru.practicum.shareit.markers.Create;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
-import java.util.List;
+import javax.validation.constraints.*;
 
-@Data
+@FieldDefaults(level = AccessLevel.PRIVATE)
+@Getter
+@Setter
+@Builder
 public class ItemDto {
-    private long id;
+    Long id;
 
-    @NotBlank(message = "Поле с именем не должно быть пустым.")
-    private String name;
+    @NotBlank(groups = Create.class)
+    String name;
 
-    @NotBlank(message = "Поле с описанием не должно быть пустым.")
-    private String description;
+    @NotBlank(groups = Create.class)
+    String description;
 
-    @NotNull(message = "Поле Available не должно быть пустым.")
-    private Boolean available;
-    private BookingDtoShort lastBooking;
-    private BookingDtoShort nextBooking;
-    private List<CommentDto> comments;
+    @NotNull(groups = Create.class)
+    Boolean available;
+    Long ownerId;
+    Long requestId;
 }

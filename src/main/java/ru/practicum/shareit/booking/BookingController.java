@@ -1,64 +1,77 @@
 package ru.practicum.shareit.booking;
 
-import lombok.AllArgsConstructor;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponents;
-import ru.practicum.shareit.booking.dto.BookingDto;
-import ru.practicum.shareit.booking.dto.BookingInputDto;
-import ru.practicum.shareit.booking.model.AccessLevel;
+
+import ru.practicum.shareit.booking.dto.BookingRequestDto;
+import ru.practicum.shareit.booking.dto.BookingResponseDto;
 import ru.practicum.shareit.booking.model.State;
-import ru.practicum.shareit.logger.Logger;
-import ru.practicum.shareit.util.UriBuilderUtil;
+import ru.practicum.shareit.markers.Constants;
 
 import javax.validation.Valid;
+
+import javax.validation.constraints.Positive;
+import javax.validation.constraints.PositiveOrZero;
 import java.util.List;
 
 @RestController
 @RequestMapping(path = "/bookings")
-@AllArgsConstructor
+@Slf4j
+@Validated
 public class BookingController {
     private final BookingService bookingService;
 
-    private final UriBuilderUtil uriBuilderUtil;
-
-    @PostMapping
-    public ResponseEntity<BookingDto> addBooking(@RequestHeader("X-Sharer-User-Id") long userId,
-                                                 @Valid @RequestBody BookingInputDto bookingInputDto) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/bookings");
-        Logger.logRequest(HttpMethod.POST, uriComponents.toUriString(), bookingInputDto.toString());
-        return ResponseEntity.status(201).body(bookingService.addBooking(userId, bookingInputDto));
+    public BookingController(BookingService bookingService) {
+        this.bookingService = bookingService;
     }
 
-    @PatchMapping("/{bookingId}")
-    public ResponseEntity<BookingDto> approveOrRejectBooking(@PathVariable long bookingId, @RequestParam boolean approved,
-                                                             @RequestHeader("X-Sharer-User-Id") long userId) {
-        UriComponents uriComponents = uriBuilderUtil.buildUriWithQueryParams("/bookings/{bookingId}", "approved", approved);
-        Logger.logRequest(HttpMethod.PATCH, uriComponents.toUriString(), "no body");
-        return ResponseEntity.ok().body(bookingService.approveOrRejectBooking(userId, bookingId, approved, AccessLevel.OWNER));
-    }
-
-    @GetMapping("/{bookingId}")
-    public ResponseEntity<BookingDto> getBookingById(@PathVariable long bookingId, @RequestHeader("X-Sharer-User-Id") long userId) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/bookings/{bookingId}");
-        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "no body");
-        return ResponseEntity.ok().body(bookingService.getBooking(bookingId, userId, AccessLevel.OWNER_AND_BOOKER));
+    @GetMapping("/{id}")
+    public BookingResponseDto getById(@RequestHeader(Constants.headerUserId) Long userId,
+                                      @PathVariable Long id) {
+        log.info("Получен запрос GET /bookings/id  запрос на вещь с id" + id);
+        return bookingService.getById(userId, id);
     }
 
     @GetMapping
-    public ResponseEntity<List<BookingDto>> getBookingsOfCurrentUser(@RequestParam(defaultValue = "ALL") String state,
-                                                                     @RequestHeader("X-Sharer-User-Id") long userId) {
-        UriComponents uriComponents = uriBuilderUtil.buildUriWithQueryParams("/bookings/", "state", state);
-        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "no body");
-        return ResponseEntity.ok().body(bookingService.getBookingsOfCurrentUser(State.convert(state), userId));
+    public List<BookingResponseDto> getAllByBookerId(
+            @RequestHeader(Constants.headerUserId) Long userId,
+            @RequestParam(defaultValue = "ALL") String state,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) @Positive Integer size) {
+        State stateEnum = State.stringToState(state).orElseThrow(
+                () -> new IllegalArgumentException("Unknown state: " + state));
+        log.info("Получен запрос всех вещей бронирующего GET /bookings " + userId);
+        return bookingService.getAllByBookerId(userId, stateEnum, PageRequest.of(from / size, size));
     }
 
     @GetMapping("/owner")
-    public ResponseEntity<List<BookingDto>> getBookingsOfOwner(@RequestParam(defaultValue = "ALL") String state,
-                                                               @RequestHeader("X-Sharer-User-Id") long userId) {
-        UriComponents uriComponents = uriBuilderUtil.buildUriWithQueryParams("/bookings/owner", "state", state);
-        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "no body");
-        return ResponseEntity.ok().body(bookingService.getBookingsOfOwner(State.convert(state), userId));
+    public List<BookingResponseDto> getAllByOwnerId(
+            @RequestHeader(Constants.headerUserId) Long userId,
+            @RequestParam(defaultValue = "ALL") String state,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM, required = false) @PositiveOrZero Integer from,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE, required = false) @Positive Integer size) {
+        State stateEnum = State.stringToState(state).orElseThrow(
+                () -> new IllegalArgumentException("Unknown state: " + state));
+        log.info("Получен запрос всех вещей владельца GET /bookings/owner " + userId);
+        return bookingService.getAllByOwnerId(userId, stateEnum, PageRequest.of(from / size, size));
+    }
+
+    @PostMapping
+    public BookingResponseDto createBooking(@RequestHeader(Constants.headerUserId) Long userId,
+                                            @Valid @RequestBody BookingRequestDto bookingRequestDto) {
+        log.info("Получен запрос POST /bookings " + userId);
+        return bookingService.createBooking(userId, bookingRequestDto);
+    }
+
+    @PatchMapping("/{id}")
+    public BookingResponseDto approveBooking(@RequestHeader(Constants.headerUserId) Long userId,
+                                             @PathVariable Long id,
+                                             @RequestParam() Boolean approved) {
+        log.info("Получен запрос PATCH /bookings/id " + " ! статус брони вещи с id" + id + ": забронировано=" + approved + " юзер с id" + userId);
+        return bookingService.approveBooking(userId, id, approved);
     }
 }

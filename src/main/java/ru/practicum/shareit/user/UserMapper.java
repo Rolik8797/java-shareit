@@ -1,23 +1,14 @@
 package ru.practicum.shareit.user;
 
-import org.modelmapper.ModelMapper;
-import org.springframework.stereotype.Component;
+import org.mapstruct.Mapper;
+
 import ru.practicum.shareit.user.dto.UserDto;
 import ru.practicum.shareit.user.model.User;
 
-@Component
-public class UserMapper {
-    private final ModelMapper modelMapper;
+@Mapper(componentModel = "spring")
+public interface UserMapper {
 
-    public UserMapper() {
-        modelMapper = new ModelMapper();
-    }
+    UserDto toUserDto(User user);
 
-    public UserDto convertToDto(User user) {
-        return modelMapper.map(user, UserDto.class);
-    }
-
-    public User convertFromDto(UserDto userDto) {
-        return modelMapper.map(userDto, User.class);
-    }
+    User toUser(UserDto userDto);
 }

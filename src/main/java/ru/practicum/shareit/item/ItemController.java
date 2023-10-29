@@ -1,74 +1,83 @@
 package ru.practicum.shareit.item;
 
-import lombok.AllArgsConstructor;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.data.domain.PageRequest;
+
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponents;
-import ru.practicum.shareit.item.dto.CommentDto;
-import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.logger.Logger;
-import ru.practicum.shareit.util.UriBuilderUtil;
+import ru.practicum.shareit.item.dto.*;
+import ru.practicum.shareit.markers.Constants;
+import ru.practicum.shareit.markers.Create;
+import ru.practicum.shareit.markers.Update;
 
 import javax.validation.Valid;
+
+import javax.validation.constraints.Positive;
+import javax.validation.constraints.PositiveOrZero;
 import java.util.List;
 
 @RestController
 @RequestMapping("/items")
-@AllArgsConstructor
+@Slf4j
+@Validated
 public class ItemController {
     private final ItemService itemService;
 
-    private final UriBuilderUtil uriBuilderUtil;
-
-    @PostMapping
-    public ResponseEntity<ItemDto> addItem(@RequestHeader("X-Sharer-User-Id") long userId, @Valid @RequestBody ItemDto itemDto) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/items");
-        Logger.logRequest(HttpMethod.POST, uriComponents.toUriString(), itemDto.toString());
-        return ResponseEntity.status(201).body(itemService.addItem(userId, itemDto));
-    }
-
-    @GetMapping("{itemId}")
-    public ResponseEntity<ItemDto> getItem(@PathVariable long itemId, @RequestHeader("X-Sharer-User-Id") long userId) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/items/{itemId}");
-        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "пусто");
-        return ResponseEntity.ok().body(itemService.getItemById(itemId, userId));
+    public ItemController(ItemService itemService) {
+        this.itemService = itemService;
     }
 
     @GetMapping
-    public ResponseEntity<List<ItemDto>> getAllItems(@RequestHeader("X-Sharer-User-Id") long userId) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/items");
-        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "пусто");
-        return ResponseEntity.ok().body(itemService.getAllItems(userId));
+    public List<ItemExtendedDto> getPersonalItems(
+            @RequestHeader(Constants.headerUserId) Long userId,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) @Positive Integer size) {
+        log.info("Получен запрос GET /items " + userId);
+        return itemService.getPersonalItems(userId, PageRequest.of(from / size, size));
+    }
+
+    @GetMapping("/{id}")
+    public ItemExtendedDto getById(@RequestHeader(Constants.headerUserId) Long userId,
+                                   @PathVariable Long id) {
+        log.info("Получен запрос GET /items/id  запрос на вещь с id" + id);
+        return itemService.getById(userId, id);
+    }
+
+    @PostMapping
+    public ItemDto createItem(@RequestHeader(Constants.headerUserId) Long userId,
+                              @Validated(Create.class) @RequestBody ItemDto itemDto) {
+        log.info("Получен запрос POST /items " + itemDto);
+        return itemService.createItem(userId, itemDto);
+    }
+
+    @PatchMapping("/{id}")
+    public ItemDto updateItem(@RequestHeader(Constants.headerUserId) Long userId,
+                              @PathVariable Long id,
+                              @Validated(Update.class) @RequestBody ItemDto itemDto) {
+        log.info("Получен запрос PATCH /items/id " + "!Обновление вещи с id" + id + " на " + itemDto + " юзер с id" + userId);
+        return itemService.updateItem(userId, id, itemDto);
+    }
+
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        log.info("Получен запрос POST /items/id " + id);
+        itemService.delete(id);
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<ItemDto>> searchItems(@RequestParam String text) {
-        UriComponents uriComponents = uriBuilderUtil.buildUriWithQueryParams("/items", "search", text);
-        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "пусто");
-        return ResponseEntity.ok().body(itemService.searchItems(text));
+    public List<ItemDto> getFoundItems(
+            @RequestParam String text,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) @Positive Integer size) {
+        log.info("Получен запрос PATCH /items/search " + text);
+        return itemService.getFoundItems(text, PageRequest.of(from / size, size));
     }
 
-    @PatchMapping("{itemId}")
-    public ResponseEntity<ItemDto> updateItem(@RequestHeader("X-Sharer-User-Id") long userId, @PathVariable long itemId, @RequestBody ItemDto itemDto) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/items/{itemId}");
-        Logger.logRequest(HttpMethod.PATCH, uriComponents.toUriString(), itemDto.toString());
-        return ResponseEntity.ok().body(itemService.updateItem(userId, itemId, itemDto));
-    }
-
-    @DeleteMapping("{itemId}")
-    public ResponseEntity<Void> removeItem(@RequestHeader("X-Sharer-User-Id") long userId, @PathVariable long itemId) {
-        itemService.removeItem(userId, itemId);
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/items/{itemId}");
-        Logger.logRequest(HttpMethod.DELETE, uriComponents.toUriString(), "пусто");
-        return ResponseEntity.ok().build();
-    }
-
-    @PostMapping("/{itemId}/comment")
-    public ResponseEntity<CommentDto> addComment(@RequestHeader("X-Sharer-User-Id") long userId, @PathVariable long itemId,
-                                                 @RequestBody @Valid CommentDto commentDto) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/items/{itemId}/comment");
-        Logger.logRequest(HttpMethod.POST, uriComponents.toUriString(), commentDto.toString());
-        return ResponseEntity.ok().body(itemService.addComment(userId, itemId, commentDto));
+    @PostMapping("{id}/comment")
+    public CommentDto addComment(@RequestHeader(Constants.headerUserId) long userId,
+                                 @PathVariable long id,
+                                 @Valid @RequestBody CommentRequestDto commentRequestDto) {
+        return itemService.addComment(userId, id, commentRequestDto);
     }
 }

@@ -1,59 +1,61 @@
 package ru.practicum.shareit.user;
 
-import lombok.AllArgsConstructor;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.util.UriComponents;
-import ru.practicum.shareit.exception.DataExistException;
-import ru.practicum.shareit.logger.Logger;
-import ru.practicum.shareit.user.dto.UserDto;
-import ru.practicum.shareit.util.UriBuilderUtil;
+import lombok.extern.slf4j.Slf4j;
 
-import javax.validation.Valid;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+import ru.practicum.shareit.markers.Create;
+import ru.practicum.shareit.markers.Update;
+import ru.practicum.shareit.user.dto.UserDto;
+
 import java.util.List;
+
 
 @RestController
 @RequestMapping(path = "/users")
-@AllArgsConstructor
+@Slf4j
 public class UserController {
+
     private final UserService userService;
 
-    private final UriBuilderUtil uriBuilderUtil;
-
-    @PostMapping
-    public ResponseEntity<UserDto> addUser(@Valid @RequestBody UserDto userDto) throws DataExistException {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/users");
-        Logger.logRequest(HttpMethod.POST, uriComponents.toUriString(), userDto.toString());
-        return ResponseEntity.status(201).body(userService.addUser(userDto));
+    public UserController(UserService userService) {
+        this.userService = userService;
     }
 
-    @GetMapping("{userId}")
-    public ResponseEntity<UserDto> getUserById(@PathVariable long userId) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/users/{userId}");
-        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "пусто");
-        return ResponseEntity.ok().body(userService.getUser(userId));
-    }
 
     @GetMapping
-    public ResponseEntity<List<UserDto>> getAllUsers() throws DataExistException {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/users");
-        Logger.logRequest(HttpMethod.GET, uriComponents.toUriString(), "пусто");
-        return ResponseEntity.ok().body(userService.getAllUsers());
+    public List<UserDto> getAll() {
+        log.info("Получен запрос GET /users");
+        return userService.getAll();
     }
 
-    @PatchMapping("{userId}")
-    public ResponseEntity<UserDto> updateUser(@PathVariable long userId, @RequestBody UserDto userDto) throws DataExistException {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/users/{userId}");
-        Logger.logRequest(HttpMethod.PATCH, uriComponents.toUriString(), userDto.toString());
-        return ResponseEntity.ok().body(userService.updateUser(userId, userDto));
+    @GetMapping("/{id}")
+    public UserDto getById(
+            @PathVariable Long id) {
+        log.info("Получен запрос GET /users/id " + id);
+        return userService.getById(id);
     }
 
-    @DeleteMapping("{userId}")
-    public ResponseEntity<Void> removeUser(@PathVariable long userId) {
-        UriComponents uriComponents = uriBuilderUtil.buildUri("/users/{userId}");
-        Logger.logRequest(HttpMethod.DELETE, uriComponents.toUriString(), "пусто");
-        userService.removeUser(userId);
-        return ResponseEntity.ok().build();
+    @PostMapping
+    public UserDto createUser(
+            @Validated(Create.class)
+            @RequestBody UserDto userDto) {
+        log.info("Получен запрос POST /users " + userDto);
+        return userService.createUser(userDto);
+    }
+
+    @PatchMapping("/{id}")
+    public UserDto updateUser(@PathVariable Long id,
+                              @Validated(Update.class)
+                          @RequestBody UserDto userDto) {
+        log.info("Получен запрос PATCH /users/id " + "!Обновление пользователя с id " + id + " на " + userDto);
+        return userService.updateUser(id, userDto);
+    }
+
+    @DeleteMapping("/{id}")
+    public void deleteUser(
+            @PathVariable Long id) {
+        log.info("Получен запрос POST /users/id " + id);
+        userService.deleteUser(id);
     }
 }
