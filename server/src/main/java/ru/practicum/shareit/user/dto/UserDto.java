@@ -5,7 +5,8 @@ import lombok.experimental.FieldDefaults;
 import ru.practicum.shareit.markers.Create;
 import ru.practicum.shareit.markers.Update;
 
-import javax.validation.constraints.*;
+import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter

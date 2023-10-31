@@ -2,29 +2,29 @@ package ru.practicum.shareit.item;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.BookingRepository;
-import ru.practicum.shareit.booking.dto.BookingItemDto;
 import ru.practicum.shareit.booking.model.Booking;
+
+import ru.practicum.shareit.booking.dto.BookingItemDto;
+
 import ru.practicum.shareit.booking.model.Status;
 import ru.practicum.shareit.exception.AuthorisationException;
 import ru.practicum.shareit.exception.BookingException;
 import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.item.dto.*;
+
+import ru.practicum.shareit.item.dto.CommentDto;
+import ru.practicum.shareit.item.dto.CommentRequestDto;
+import ru.practicum.shareit.item.dto.ItemDto;
+import ru.practicum.shareit.item.dto.ItemExtendedDto;
 
 import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
-
-
 import ru.practicum.shareit.user.UserService;
 
-
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -42,7 +42,7 @@ public class ItemServiceImpl implements ItemService {
     private final ItemMapper itemMapper;
 
     @Override
-    public List<ItemExtendedDto> getPersonalItems(Long userId, Pageable pageable) {
+    public List<ItemExtendedDto> getByOwnerId(Long userId, Pageable pageable) {
         log.info("Вывод всех вещей пользователя с id {}.", userId);
 
         Page<Item> items = itemRepository.findByOwnerIdOrderByIdAsc(userId, pageable);
@@ -134,7 +134,7 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     @Transactional
-    public ItemDto createItem(Long userId, ItemDto itemDto) {
+    public ItemDto add(Long userId, ItemDto itemDto) {
         log.info("Создание вещи {} пользователем с id {}.", itemDto, userId);
         Item item = itemMapper.toItem(itemDto, userService.getUserById(userId));
         return itemMapper.toItemDto(itemRepository.save(item));
@@ -142,7 +142,7 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     @Transactional
-    public ItemDto updateItem(Long userId, Long id, ItemDto itemDto) {
+    public ItemDto update(Long userId, Long id, ItemDto itemDto) {
         log.info("Обновление вещи {} с id {} пользователем с id {}.", itemDto, id, userId);
 
         Item repoItem = itemRepository.findById(id)
@@ -173,7 +173,7 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
-    public List<ItemDto> getFoundItems(String text, Pageable pageable) {
+    public List<ItemDto> search(String text, Pageable pageable) {
         log.info("Поиск вещей с подстрокой \"{}\".", text);
 
         if (text.isBlank() || text.isEmpty() || text.equals(" ")) {

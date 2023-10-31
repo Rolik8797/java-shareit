@@ -8,7 +8,7 @@ import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
 import java.util.List;
 
 public interface ItemRequestService {
-    ItemRequestDto createItemRequest(Long userId, ItemRequestAddDto itemRequestCreateDto);
+    ItemRequestDto add(Long userId, ItemRequestAddDto itemRequestCreateDto);
 
     ItemRequestExtendedDto getById(Long userId, Long id);
 
