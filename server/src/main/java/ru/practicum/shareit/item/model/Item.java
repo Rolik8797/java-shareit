@@ -2,21 +2,17 @@ package ru.practicum.shareit.item.model;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import ru.practicum.shareit.user.model.User;
-import javax.persistence.*;
 
+import javax.persistence.*;
 import java.util.Objects;
 
-
 @Entity
-@Table(name = "items", schema = "public")
+@Table(name = "items")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Getter
-@Setter
-@ToString
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

@@ -4,10 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.booking.dto.BookingRequestDto;
-
 import ru.practicum.shareit.booking.dto.BookingResponseDto;
+
 import ru.practicum.shareit.booking.model.Booking;
 
 import ru.practicum.shareit.booking.model.State;
@@ -18,9 +18,8 @@ import ru.practicum.shareit.item.ItemService;
 import ru.practicum.shareit.item.model.Item;
 
 import ru.practicum.shareit.user.UserService;
-
-import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.user.model.User;
+
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -127,7 +126,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public BookingResponseDto createBooking(Long userId, BookingRequestDto bookingRequestDto) {
+    public BookingResponseDto add(Long userId, BookingRequestDto bookingRequestDto) {
         log.info("Создание бронирования {} пользователем с id {}.", bookingRequestDto, userId);
 
         if (bookingRequestDto.getEnd().isBefore(bookingRequestDto.getStart())) {
@@ -161,7 +160,7 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @Transactional
-    public BookingResponseDto approveBooking(Long userId, Long id, Boolean approved) {
+    public BookingResponseDto update(Long userId, Long id, Boolean approved) {
         log.info("Обновление статуса бронирования {}.", id);
 
         Booking repoBooking = getBookingById(id);

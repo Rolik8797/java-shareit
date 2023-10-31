@@ -2,19 +2,19 @@ package ru.practicum.shareit.request;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.data.domain.Page;
-
 import org.springframework.data.domain.Pageable;
-
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.item.ItemMapper;
 import ru.practicum.shareit.item.ItemRepository;
 import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.request.dto.*;
+
+import ru.practicum.shareit.request.dto.ItemRequestAddDto;
+import ru.practicum.shareit.request.dto.ItemRequestDto;
+import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
+
 import ru.practicum.shareit.request.model.ItemRequest;
 
 import ru.practicum.shareit.user.UserService;
@@ -39,7 +39,7 @@ public class ItemRequestServiceImpl implements ItemRequestService {
 
     @Override
     @Transactional
-    public ItemRequestDto createItemRequest(Long userId, ItemRequestAddDto itemRequestCreateDto) {
+    public ItemRequestDto add(Long userId, ItemRequestAddDto itemRequestCreateDto) {
         log.info("Создание запроса вещи {} пользователем с id {}.", itemRequestCreateDto, userId);
 
         User user = userService.getUserById(userId);

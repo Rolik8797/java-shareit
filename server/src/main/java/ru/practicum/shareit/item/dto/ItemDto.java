@@ -7,7 +7,8 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 import ru.practicum.shareit.markers.Create;
 
-import javax.validation.constraints.*;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter

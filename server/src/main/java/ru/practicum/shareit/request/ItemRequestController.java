@@ -1,9 +1,7 @@
 package ru.practicum.shareit.request;
 
 import lombok.extern.slf4j.Slf4j;
-
 import org.springframework.data.domain.PageRequest;
-
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import ru.practicum.shareit.markers.Constants;
@@ -11,9 +9,8 @@ import ru.practicum.shareit.request.dto.ItemRequestAddDto;
 import ru.practicum.shareit.request.dto.ItemRequestDto;
 import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
 
-import javax.validation.Valid;
 
-import javax.validation.constraints.Positive;
+import javax.validation.Valid;
 import javax.validation.constraints.PositiveOrZero;
 import java.util.List;
 
@@ -29,11 +26,11 @@ public class ItemRequestController {
     }
 
     @PostMapping
-    public ItemRequestDto createItemRequest(
+    public ItemRequestDto add(
             @RequestHeader(Constants.headerUserId) Long userId,
             @Valid @RequestBody ItemRequestAddDto itemRequestCreateDto) {
         log.info("Получен запрос POST  " + userId);
-        return itemRequestService.createItemRequest(userId, itemRequestCreateDto);
+        return itemRequestService.add(userId, itemRequestCreateDto);
     }
 
     @GetMapping("/{id}")
@@ -55,7 +52,7 @@ public class ItemRequestController {
     public List<ItemRequestExtendedDto> getAll(
             @RequestHeader(Constants.headerUserId) Long userId,
             @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) @Positive Integer size) {
+            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) Integer size) {
         log.info("Получен запрос GET всех вещей пользователя с id: " + userId);
         return itemRequestService.getAll(userId, PageRequest.of(from / size, size));
     }
