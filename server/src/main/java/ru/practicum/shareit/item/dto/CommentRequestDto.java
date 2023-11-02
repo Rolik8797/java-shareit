@@ -14,4 +14,5 @@ import javax.validation.constraints.NotBlank;
 public class CommentRequestDto {
     @NotBlank
     String text;
+
 }

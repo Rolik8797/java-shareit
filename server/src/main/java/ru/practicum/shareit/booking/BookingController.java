@@ -70,4 +70,5 @@ public class BookingController {
         log.info("Получен запрос PATCH /bookings/id " + " ! статус брони вещи с id" + id + ": забронировано=" + approved + " юзер с id" + userId);
         return bookingService.update(userId, id, approved);
     }
+
 }

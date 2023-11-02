@@ -19,5 +19,4 @@ public enum State {
         }
         return Optional.empty();
     }
-
 }

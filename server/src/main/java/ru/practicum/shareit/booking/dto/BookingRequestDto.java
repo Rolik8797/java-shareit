@@ -25,5 +25,4 @@ public class BookingRequestDto {
 
     @NotNull
     Long itemId;
-
 }

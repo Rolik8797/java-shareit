@@ -18,5 +18,4 @@ public interface BookingService {
     BookingResponseDto add(Long userId, BookingRequestDto bookingRequestDto);
 
     BookingResponseDto update(Long userId, Long id, Boolean approved);
-
 }

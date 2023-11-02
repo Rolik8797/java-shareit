@@ -51,4 +51,5 @@ public class UserController {
         log.info("Получен запрос POST /users/id " + id);
         userClient.deleteUser(id);
     }
+
 }

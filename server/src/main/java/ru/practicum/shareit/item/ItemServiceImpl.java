@@ -239,4 +239,5 @@ public class ItemServiceImpl implements ItemService {
                 .map(itemMapper::commentToCommentDto)
                 .collect(Collectors.toList());
     }
+
 }

@@ -21,4 +21,5 @@ public class BookingResponseDto {
     ItemDto item;
     UserDto booker;
     Status status;
+
 }
