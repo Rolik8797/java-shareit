@@ -7,7 +7,6 @@ import ru.practicum.shareit.markers.Create;
 import ru.practicum.shareit.markers.Update;
 import ru.practicum.shareit.user.dto.UserDto;
 
-
 import java.util.List;
 
 @RestController

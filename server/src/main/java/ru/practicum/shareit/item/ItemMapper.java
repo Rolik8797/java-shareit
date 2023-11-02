@@ -16,7 +16,6 @@ import ru.practicum.shareit.user.model.User;
 import java.time.LocalDateTime;
 import java.util.List;
 
-
 @Mapper(componentModel = "spring")
 public interface ItemMapper {
     @Mapping(target = "ownerId", expression = "java(item.getOwner().getId())")

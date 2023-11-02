@@ -6,7 +6,6 @@ import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestTemplate;
 import ru.practicum.shareit.constains.Constants;
 
-
 import java.util.List;
 import java.util.Map;
 

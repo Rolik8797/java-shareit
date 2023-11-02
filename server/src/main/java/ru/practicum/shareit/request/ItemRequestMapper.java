@@ -23,5 +23,4 @@ public interface ItemRequestMapper {
 
     @Mapping(target = "items", expression = "java(items)")
     ItemRequestExtendedDto toItemRequestExtendedDto(ItemRequest itemRequest, List<ItemDto> items);
-
 }

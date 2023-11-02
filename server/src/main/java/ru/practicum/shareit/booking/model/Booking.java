@@ -55,4 +55,5 @@ public class Booking {
     public int hashCode() {
         return Objects.hash(id, start, end, item, booker, status);
     }
+
 }

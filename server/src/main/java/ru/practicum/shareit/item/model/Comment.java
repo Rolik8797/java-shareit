@@ -47,4 +47,5 @@ public class Comment {
     public int hashCode() {
         return Objects.hash(id, text, created, author, itemId);
     }
+
 }

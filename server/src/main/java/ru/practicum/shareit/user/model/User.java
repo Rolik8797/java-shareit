@@ -37,4 +37,5 @@ public class User {
     public int hashCode() {
         return Objects.hash(id, name, email);
     }
+
 }

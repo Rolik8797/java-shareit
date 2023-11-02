@@ -19,5 +19,4 @@ public enum BookingState {
         }
         return Optional.empty();
     }
-
 }

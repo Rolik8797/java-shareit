@@ -7,7 +7,6 @@ import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 import ru.practicum.shareit.booking.dto.BookingItemDto;
 
-
 import java.util.List;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
