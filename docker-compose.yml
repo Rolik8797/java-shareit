@@ -24,6 +24,7 @@ services:
     depends_on:
       - db
     environment:
+      - SERVER_PORT=9090
       - DB_NAME=shareit
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=password
