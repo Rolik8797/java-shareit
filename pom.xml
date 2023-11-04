@@ -75,8 +75,6 @@
 							<artifactId>checkstyle</artifactId>
 							<version>10.3</version>
 						</dependency>
-
-
 					</dependencies>
 				</plugin>
 				<plugin>
