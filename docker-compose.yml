@@ -10,7 +10,7 @@ services:
       - server
     environment:
       - SHAREIT_SERVER_URL=http://server:9090
-
+      - TZ=Europe/Moscow
 
 
   server:
@@ -26,7 +26,7 @@ services:
       - DB_NAME=shareit
       - SPRING_DATASOURCE_USERNAME=root
       - SPRING_DATASOURCE_PASSWORD=password
-
+      - TZ=Europe/Moscow
 
 
   db:
@@ -38,4 +38,4 @@ services:
       - POSTGRES_DB=shareit
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=password
-    
+      - TZ=Europe/Moscow
