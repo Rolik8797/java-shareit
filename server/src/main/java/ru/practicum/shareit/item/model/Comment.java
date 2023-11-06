@@ -1,5 +1,6 @@
 package ru.practicum.shareit.item.model;
 
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.OnDelete;
@@ -49,5 +50,4 @@ public class Comment {
     public int hashCode() {
         return Objects.hash(id, text, created, author, itemId);
     }
-
 }

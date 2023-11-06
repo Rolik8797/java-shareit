@@ -1,6 +1,9 @@
 package ru.practicum.shareit.item.dto;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+
+import javax.validation.constraints.NotBlank;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Getter
@@ -9,5 +12,6 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @Builder
 public class CommentRequestDto {
-  private String text;
+  @NotBlank
+  String text;
 }

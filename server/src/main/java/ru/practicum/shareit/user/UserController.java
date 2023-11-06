@@ -7,6 +7,7 @@ import ru.practicum.shareit.markers.Create;
 import ru.practicum.shareit.markers.Update;
 import ru.practicum.shareit.user.dto.UserDto;
 
+
 import java.util.List;
 
 @RestController
@@ -38,9 +39,6 @@ public class UserController {
     public UserDto add(
             @Validated(Create.class)
             @RequestBody UserDto userDto) {
-        if (userDto.getEmail() == null) {
-            throw new IllegalArgumentException("Email is required");
-        }
         log.info("Получен запрос POST /users " + userDto);
         return userService.add(userDto);
     }
@@ -49,9 +47,6 @@ public class UserController {
     public UserDto update(@PathVariable Long id,
                           @Validated(Update.class)
                           @RequestBody UserDto userDto) {
-        if (userDto.getEmail() == null) {
-            throw new IllegalArgumentException("Email is required");
-        }
         log.info("Получен запрос PATCH /users/id " + "!Обновление пользователя с id " + id + " на " + userDto);
         return userService.update(id, userDto);
     }

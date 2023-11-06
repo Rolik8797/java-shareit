@@ -73,6 +73,62 @@ public class UserControllerTest {
 
             verify(userService, times(1)).add(ArgumentMatchers.any(UserDto.class));
         }
+
+        @Test
+        public void shouldThrowExceptionIfEmailIsNull() throws Exception {
+            userDto1.setEmail(null);
+
+            mvc.perform(post("/users")
+                            .content(mapper.writeValueAsString(userDto1))
+                            .characterEncoding(StandardCharsets.UTF_8)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest());
+
+            verify(userService, never()).add(ArgumentMatchers.any());
+        }
+
+        @Test
+        public void shouldThrowExceptionIfEmailIsEmpty() throws Exception {
+            userDto1.setEmail("");
+
+            mvc.perform(post("/users")
+                            .content(mapper.writeValueAsString(userDto1))
+                            .characterEncoding(StandardCharsets.UTF_8)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest());
+
+            verify(userService, never()).add(ArgumentMatchers.any());
+        }
+
+        @Test
+        public void shouldThrowExceptionIfEmailIsBlank() throws Exception {
+            userDto1.setEmail(" ");
+
+            mvc.perform(post("/users")
+                            .content(mapper.writeValueAsString(userDto1))
+                            .characterEncoding(StandardCharsets.UTF_8)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest());
+
+            verify(userService, never()).add(ArgumentMatchers.any());
+        }
+
+        @Test
+        public void shouldThrowExceptionIfIsNotEmail() throws Exception {
+            userDto1.setEmail("tester1ya.ru");
+
+            mvc.perform(post("/users")
+                            .content(mapper.writeValueAsString(userDto1))
+                            .characterEncoding(StandardCharsets.UTF_8)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest());
+
+            verify(userService, never()).add(ArgumentMatchers.any());
+        }
     }
 
     @Nested
@@ -131,6 +187,20 @@ public class UserControllerTest {
 
             verify(userService, times(1))
                     .update(ArgumentMatchers.eq(userDtoPatched.getId()), ArgumentMatchers.any(UserDto.class));
+        }
+
+        @Test
+        public void shouldThrowExceptionIfNotEmail() throws Exception {
+            userDtoToPatch.setEmail("PatchedTester1ya.ru");
+
+            mvc.perform(patch("/users/{id}", userDtoPatched.getId())
+                            .content(mapper.writeValueAsString(userDtoToPatch))
+                            .characterEncoding(StandardCharsets.UTF_8)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .accept(MediaType.APPLICATION_JSON))
+                    .andExpect(status().isBadRequest());
+
+            verify(userService, never()).update(ArgumentMatchers.any(), ArgumentMatchers.any());
         }
     }
 

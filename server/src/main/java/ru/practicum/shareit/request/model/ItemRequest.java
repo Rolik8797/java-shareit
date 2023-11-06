@@ -1,5 +1,6 @@
 package ru.practicum.shareit.request.model;
 
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.OnDelete;
@@ -46,5 +47,4 @@ public class ItemRequest {
     public int hashCode() {
         return Objects.hash(id, description, requestorId, created);
     }
-
 }

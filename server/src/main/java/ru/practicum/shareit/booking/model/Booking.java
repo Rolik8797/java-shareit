@@ -1,5 +1,6 @@
 package ru.practicum.shareit.booking.model;
 
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.OnDelete;
@@ -10,6 +11,7 @@ import ru.practicum.shareit.user.model.User;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.Objects;
+
 
 @Entity
 @Table(name = "bookings")
@@ -50,7 +52,6 @@ public class Booking {
         if (this == o) return true;
         if (!(o instanceof Booking)) return false;
         return id != null && id.equals(((Booking) o).getId());
-
     }
 
     @Override

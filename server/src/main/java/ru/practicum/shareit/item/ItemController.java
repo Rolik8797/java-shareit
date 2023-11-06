@@ -14,6 +14,7 @@ import ru.practicum.shareit.markers.Constants;
 import ru.practicum.shareit.markers.Create;
 import ru.practicum.shareit.markers.Update;
 
+import javax.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -77,8 +78,7 @@ public class ItemController {
     @PostMapping("{id}/comment")
     public CommentDto addComment(@RequestHeader(Constants.headerUserId) long userId,
                                  @PathVariable long id,
-                                @RequestBody CommentRequestDto commentRequestDto) {
+                                 @Valid @RequestBody CommentRequestDto commentRequestDto) {
         return itemService.addComment(userId, id, commentRequestDto);
     }
-
 }

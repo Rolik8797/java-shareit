@@ -1,9 +1,10 @@
 package ru.practicum.shareit.item;
 
+import java.util.List;
+
 import lombok.*;
 import ru.practicum.shareit.booking.BookingItemDto;
 
-import java.util.List;
 
 @Getter
 @Setter

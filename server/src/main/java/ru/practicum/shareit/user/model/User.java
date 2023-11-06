@@ -1,10 +1,11 @@
 package ru.practicum.shareit.user.model;
 
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import javax.persistence.*;
-
+import javax.validation.constraints.Email;
 import java.util.Objects;
 
 @Entity
@@ -24,7 +25,7 @@ public class User {
     @Column
     String name;
 
-
+    @Email
     @Column(nullable = false)
     String email;
 
@@ -39,5 +40,4 @@ public class User {
     public int hashCode() {
         return Objects.hash(id, name, email);
     }
-
 }

@@ -19,5 +19,4 @@ public class ItemRequestExtendedDto {
     String description;
     LocalDateTime created;
     List<ItemDto> items;
-
 }

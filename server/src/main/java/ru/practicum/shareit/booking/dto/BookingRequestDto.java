@@ -3,6 +3,9 @@ package ru.practicum.shareit.booking.dto;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
+import javax.validation.constraints.Future;
+import javax.validation.constraints.FutureOrPresent;
+import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -12,9 +15,15 @@ import java.time.LocalDateTime;
 @ToString
 public class BookingRequestDto {
 
-   private LocalDateTime start;
+   @NotNull
+   @FutureOrPresent
+   LocalDateTime start;
 
-   private LocalDateTime end;
+   @NotNull
+   @Future
+   LocalDateTime end;
 
-   private Long itemId;
+   @NotNull
+   Long itemId;
+
 }
