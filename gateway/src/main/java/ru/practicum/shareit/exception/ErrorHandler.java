@@ -1,5 +1,4 @@
 package ru.practicum.shareit.exception;
-
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,11 +29,10 @@ public class ErrorHandler {
         return new ErrorResponse(exception.getMessage());
     }
 
-
     @ExceptionHandler
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleException(final RuntimeException exception) {
-        log.error("400 {}", exception.getMessage(), exception);
+        log.error("500 Internal Server Error: {}", exception.getMessage(), exception);
         return new ErrorResponse(exception.getMessage());
     }
 }
