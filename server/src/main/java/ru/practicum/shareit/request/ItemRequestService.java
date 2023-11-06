@@ -15,4 +15,5 @@ public interface ItemRequestService {
     List<ItemRequestExtendedDto> getByRequestorId(Long userId);
 
     List<ItemRequestExtendedDto> getAll(Long userId, Pageable pageable);
+
 }

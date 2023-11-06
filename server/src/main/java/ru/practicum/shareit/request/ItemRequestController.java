@@ -53,4 +53,5 @@ public class ItemRequestController {
         log.info("Получен запрос GET всех вещей пользователя с id: " + userId);
         return itemRequestService.getAll(userId, PageRequest.of(from / size, size));
     }
+
 }

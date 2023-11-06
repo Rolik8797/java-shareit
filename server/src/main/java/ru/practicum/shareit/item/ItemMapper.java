@@ -45,4 +45,5 @@ public interface ItemMapper {
 
     @Mapping(target = "authorName", expression = "java(comment.getAuthor().getName())")
     CommentDto commentToCommentDto(Comment comment);
+
 }

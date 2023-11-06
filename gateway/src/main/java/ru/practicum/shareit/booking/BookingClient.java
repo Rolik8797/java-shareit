@@ -10,7 +10,6 @@ import org.springframework.web.util.DefaultUriBuilderFactory;
 import ru.practicum.shareit.client.BaseClient;
 import ru.practicum.shareit.constants.Constants;
 
-
 import java.util.Map;
 
 @Service

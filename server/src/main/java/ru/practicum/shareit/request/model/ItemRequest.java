@@ -46,4 +46,5 @@ public class ItemRequest {
     public int hashCode() {
         return Objects.hash(id, description, requestorId, created);
     }
+
 }

@@ -50,6 +50,7 @@ public class Booking {
         if (this == o) return true;
         if (!(o instanceof Booking)) return false;
         return id != null && id.equals(((Booking) o).getId());
+
     }
 
     @Override

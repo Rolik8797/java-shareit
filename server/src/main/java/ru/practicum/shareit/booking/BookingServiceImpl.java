@@ -181,4 +181,5 @@ public class BookingServiceImpl implements BookingService {
         return bookingRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("Бронирование с таким id не существует."));
     }
+
 }

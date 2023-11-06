@@ -16,4 +16,5 @@ public class ItemRequestDto {
     String description;
     Long requestor;
     LocalDateTime created;
+
 }

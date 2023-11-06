@@ -22,4 +22,5 @@ public interface BookingMapper {
     Booking requestDtoToBooking(BookingRequestDto bookingRequestDto, Item item, User user, Status status);
 
     BookingResponseDto bookingToBookingResponseDto(Booking booking);
+
 }

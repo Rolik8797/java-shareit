@@ -3,7 +3,6 @@ package ru.practicum.shareit.item;
 import lombok.*;
 import ru.practicum.shareit.booking.BookingItemDto;
 
-
 import java.util.List;
 
 @Getter
