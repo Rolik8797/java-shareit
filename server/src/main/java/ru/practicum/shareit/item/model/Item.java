@@ -12,7 +12,9 @@ import java.util.Objects;
 @Entity
 @Table(name = "items")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Data
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.FieldDefaults;
 
-import javax.validation.constraints.NotNull;
 import java.time.LocalDateTime;
 
 @FieldDefaults(level = AccessLevel.PRIVATE)
@@ -14,9 +13,8 @@ import java.time.LocalDateTime;
 @Setter
 @Builder
 public class CommentDto {
-    Long id;
-    String text;
-    @NotNull
-    LocalDateTime created;
-    String authorName;
+   private Long id;
+   private String text;
+   private LocalDateTime created;
+   private String authorName;
 }

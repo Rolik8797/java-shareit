@@ -1,15 +1,18 @@
 package ru.practicum.shareit.user.model;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import javax.persistence.*;
-import javax.validation.constraints.Email;
+
 import java.util.Objects;
 
 @Entity
 @Table(name = "users", uniqueConstraints = @UniqueConstraint(columnNames = {"email"}))
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Data
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -21,7 +24,7 @@ public class User {
     @Column
     String name;
 
-    @Email
+
     @Column(nullable = false)
     String email;
 

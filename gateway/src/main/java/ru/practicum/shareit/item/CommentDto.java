@@ -1,12 +1,23 @@
 package ru.practicum.shareit.item;
-
-import lombok.Data;
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.FieldDefaults;
 
 import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+import java.time.LocalDateTime;
 
-@Data
+@FieldDefaults(level = AccessLevel.PRIVATE)
+@Getter
+@Setter
+@Builder
 public class CommentDto {
+    Long id;
     @NotBlank
-    private String text;
-
+    String text;
+    @NotNull
+    LocalDateTime created;
+    String authorName;
 }

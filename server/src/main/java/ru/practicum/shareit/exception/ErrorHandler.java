@@ -12,21 +12,21 @@ public class ErrorHandler {
     @ExceptionHandler({NotFoundException.class})
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ErrorResponse handleNotFound(final RuntimeException exception) {
-        log.error(exception.toString());
+        log.error(exception.getMessage(), exception);
         return new ErrorResponse(exception.getMessage());
     }
 
     @ExceptionHandler({AuthorisationException.class})
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ErrorResponse handleForbidden(final RuntimeException exception) {
-        log.error(exception.toString());
+        log.error(exception.getMessage(), exception);
         return new ErrorResponse(exception.getMessage());
     }
 
     @ExceptionHandler({BookingException.class})
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleBadRequest(final RuntimeException exception) {
-        log.error(exception.toString());
+        log.error(exception.getMessage(), exception);
         return new ErrorResponse(exception.getMessage());
     }
 

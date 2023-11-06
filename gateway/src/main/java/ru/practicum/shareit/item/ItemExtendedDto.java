@@ -6,7 +6,9 @@ import ru.practicum.shareit.booking.BookingItemDto;
 
 import java.util.List;
 
-@Data
+@Getter
+@Setter
+@ToString
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder

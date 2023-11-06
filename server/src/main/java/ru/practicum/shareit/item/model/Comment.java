@@ -13,7 +13,9 @@ import java.util.Objects;
 @Entity
 @Table(name = "comments")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Data
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

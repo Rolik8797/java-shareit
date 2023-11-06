@@ -13,7 +13,9 @@ import java.util.Objects;
 @Entity
 @Table(name = "requests")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Data
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

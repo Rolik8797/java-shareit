@@ -14,7 +14,9 @@ import java.util.Objects;
 @Entity
 @Table(name = "bookings")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-@Data
+@Getter
+@Setter
+@ToString
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
