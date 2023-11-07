@@ -1,60 +1,42 @@
 package ru.practicum.shareit.user;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.validation.annotation.Validated;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.shareit.markers.Create;
-import ru.practicum.shareit.markers.Update;
 import ru.practicum.shareit.user.dto.UserDto;
 
 
-import java.util.List;
+import java.util.Collection;
 
 @RestController
 @RequestMapping(path = "/users")
-@Slf4j
+@RequiredArgsConstructor
 public class UserController {
-
     private final UserService userService;
 
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
-
-
     @GetMapping
-    public List<UserDto> getAll() {
-        log.info("Получен запрос GET /users");
-        return userService.getAll();
+    public Collection<UserDto> findAll(@RequestParam(defaultValue = "0") Integer from,
+                                       @RequestParam(defaultValue = "10") Integer size) {
+        return userService.findAll(from, size);
     }
 
-    @GetMapping("/{id}")
-    public UserDto getById(
-            @PathVariable Long id) {
-        log.info("Получен запрос GET /users/id " + id);
-        return userService.getById(id);
+    @GetMapping(value = "/{id}")
+    public UserDto findById(@PathVariable long id) {
+        return userService.findById(id);
     }
 
     @PostMapping
-    public UserDto add(
-            @Validated(Create.class)
-            @RequestBody UserDto userDto) {
-        log.info("Получен запрос POST /users " + userDto);
-        return userService.add(userDto);
+    public UserDto save(@RequestBody UserDto userDto) {
+        return userService.save(userDto);
     }
 
-    @PatchMapping("/{id}")
-    public UserDto update(@PathVariable Long id,
-                          @Validated(Update.class)
+    @PatchMapping(value = "/{id}")
+    public UserDto update(@PathVariable long id,
                           @RequestBody UserDto userDto) {
-        log.info("Получен запрос PATCH /users/id " + "!Обновление пользователя с id " + id + " на " + userDto);
         return userService.update(id, userDto);
     }
 
-    @DeleteMapping("/{id}")
-    public void delete(
-            @PathVariable Long id) {
-        log.info("Получен запрос POST /users/id " + id);
+    @DeleteMapping(value = "/{id}")
+    public void delete(@PathVariable long id) {
         userService.delete(id);
     }
 }

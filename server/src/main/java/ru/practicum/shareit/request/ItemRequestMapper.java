@@ -1,27 +1,51 @@
 package ru.practicum.shareit.request;
 
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.request.dto.ItemRequestAddDto;
+import lombok.experimental.UtilityClass;
 import ru.practicum.shareit.request.dto.ItemRequestDto;
-import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
 import ru.practicum.shareit.request.model.ItemRequest;
-import ru.practicum.shareit.user.model.User;
 
-import java.time.LocalDateTime;
+
+import java.util.ArrayList;
+import java.util.Collections;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring")
-public interface ItemRequestMapper {
-    @Mapping(target = "id", expression = "java(null)")
-    @Mapping(target = "requestorId", expression = "java(user)")
-    @Mapping(target = "created", expression = "java(dateTime)")
-    ItemRequest toItemRequest(ItemRequestAddDto itemRequestCreateDto, User user, LocalDateTime dateTime);
+@UtilityClass
+public class ItemRequestMapper {
+    public static ItemRequest toItemRequest(ItemRequestDto itemRequestDto) {
+        return ItemRequest.builder()
+                .description(itemRequestDto.getDescription())
+                .build();
+    }
 
-    ItemRequestDto toItemRequestDto(ItemRequest itemRequest);
+    public static ItemRequestDto toItemRequestDto(ItemRequest itemRequest) {
+        List<ItemRequestDto.Item> items = itemRequest.getItems() == null ? Collections.emptyList() :
+                itemRequest.getItems().stream()
+                        .map(i -> ItemRequestDto.Item
+                                .builder()
+                                .id(i.getId())
+                                .name(i.getName())
+                                .description(i.getDescription())
+                                .available(i.getAvailable())
+                                .requestId(i.getRequestId())
+                                .build())
+                        .collect(Collectors.toUnmodifiableList());
 
-    @Mapping(target = "items", expression = "java(items)")
-    ItemRequestExtendedDto toItemRequestExtendedDto(ItemRequest itemRequest, List<ItemDto> items);
+        return ItemRequestDto
+                .builder()
+                .id(itemRequest.getId())
+                .description(itemRequest.getDescription())
+                .created(itemRequest.getCreated())
+                .items(items)
+                .build();
+    }
 
+    public static List<ItemRequestDto> toItemRequestDto(Iterable<ItemRequest> itemRequests) {
+        List<ItemRequestDto> dtos = new ArrayList<>();
+        for (ItemRequest itemRequest : itemRequests) {
+            dtos.add(toItemRequestDto(itemRequest));
+        }
+        return dtos;
+    }
 }

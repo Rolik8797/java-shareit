@@ -1,49 +1,64 @@
 package ru.practicum.shareit.item;
 
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
-import ru.practicum.shareit.booking.dto.BookingItemDto;
-import ru.practicum.shareit.booking.model.Booking;
 
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.item.dto.CommentDto;
-import ru.practicum.shareit.item.dto.CommentRequestDto;
 import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.item.dto.ItemExtendedDto;
 import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
-import ru.practicum.shareit.user.model.User;
 
-import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-@Mapper(componentModel = "spring")
-public interface ItemMapper {
-    @Mapping(target = "ownerId", expression = "java(item.getOwner().getId())")
-    ItemDto toItemDto(Item item);
 
-    @Mapping(target = "id", expression = "java(itemDto.getId())")
-    @Mapping(target = "name", expression = "java(itemDto.getName())")
-    @Mapping(target = "owner", expression = "java(user)")
-    Item toItem(ItemDto itemDto, User user);
+public class ItemMapper {
+    public static Item toItem(ItemDto itemDto) {
+        return Item.itemBuilder()
+                .id(itemDto.getId())
+                .name(itemDto.getName())
+                .description(itemDto.getDescription())
+                .available(itemDto.getAvailable())
+                .requestId(itemDto.getRequestId())
+                .build();
+    }
 
-    @Mapping(target = "id", expression = "java(item.getId())")
-    @Mapping(target = "ownerId", expression = "java(item.getOwner().getId())")
-    @Mapping(target = "lastBooking", expression = "java(lastBooking)")
-    @Mapping(target = "nextBooking", expression = "java(nextBooking)")
-    @Mapping(target = "comments", expression = "java(comments)")
-    ItemExtendedDto toItemExtendedDto(Item item, BookingItemDto lastBooking, BookingItemDto nextBooking,
-                                      List<CommentDto> comments);
+    public static ItemDto toItemDto(Item item) {
+        Booking lastBookingFromDb = item.getLastBooking();
+        ItemDto.BookingDtoForItem lastBooking = lastBookingFromDb == null ? null
+                : ItemDto.BookingDtoForItem.builder()
+                .id(lastBookingFromDb.getId())
+                .bookerId(lastBookingFromDb.getBooker().getId())
+                .build();
 
-    @Mapping(target = "bookerId", expression = "java(booking.getBooker().getId())")
-    BookingItemDto bookingToBookingItemDto(Booking booking);
+        Booking nextBookingFromDb = item.getNextBooking();
+        ItemDto.BookingDtoForItem nextBooking = nextBookingFromDb == null ? null
+                : ItemDto.BookingDtoForItem.builder()
+                .id(nextBookingFromDb.getId())
+                .bookerId(nextBookingFromDb.getBooker().getId())
+                .build();
 
-    @Mapping(target = "id", expression = "java(null)")
-    @Mapping(target = "created", expression = "java(dateTime)")
-    @Mapping(target = "author", expression = "java(user)")
-    Comment commentRequestDtoToComment(CommentRequestDto commentRequestDto, LocalDateTime dateTime,
-                                       User user, Long itemId);
+        List<Comment> commentsFromDb = item.getComments();
+        List<CommentDto> comments = commentsFromDb == null || commentsFromDb.isEmpty() ? Collections.emptyList()
+                : CommentMapper.toDto(commentsFromDb);
 
-    @Mapping(target = "authorName", expression = "java(comment.getAuthor().getName())")
-    CommentDto commentToCommentDto(Comment comment);
+        return ItemDto.itemDtoBuilder()
+                .id(item.getId())
+                .name(item.getName())
+                .description(item.getDescription())
+                .available(item.getAvailable())
+                .requestId(item.getRequestId())
+                .lastBooking(lastBooking)
+                .nextBooking(nextBooking)
+                .comments(comments)
+                .build();
+    }
 
+    public static List<ItemDto> toItemDto(Iterable<Item> items) {
+        List<ItemDto> dtos = new ArrayList<>();
+        for (Item item : items) {
+            dtos.add(toItemDto(item));
+        }
+        return dtos;
+    }
 }

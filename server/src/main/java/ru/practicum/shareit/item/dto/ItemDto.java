@@ -1,30 +1,38 @@
 package ru.practicum.shareit.item.dto;
 
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.experimental.FieldDefaults;
-import ru.practicum.shareit.markers.Create;
+import lombok.*;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import java.util.ArrayList;
+import java.util.List;
 
-@FieldDefaults(level = AccessLevel.PRIVATE)
-@Getter
-@Setter
-@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Data
+@Builder(builderMethodName = "itemDtoBuilder")
 public class ItemDto {
-    Long id;
+    private Long id;
 
-    @NotBlank(groups = Create.class)
-    String name;
+    private String name;
 
-    @NotBlank(groups = Create.class)
-    String description;
+    private String description;
 
-    @NotNull(groups = Create.class)
-    Boolean available;
-    Long ownerId;
-    Long requestId;
+    private Boolean available;
+
+    private Long requestId;
+
+    private BookingDtoForItem lastBooking;
+
+    private BookingDtoForItem nextBooking;
+
+    @Builder.Default
+    private List<CommentDto> comments = new ArrayList<>();
+
+    @Getter
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class BookingDtoForItem {
+        private Long id;
+        private Long bookerId;
+    }
 }

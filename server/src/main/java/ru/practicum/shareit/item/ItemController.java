@@ -1,84 +1,66 @@
 package ru.practicum.shareit.item;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.validation.annotation.Validated;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
-
 import ru.practicum.shareit.item.dto.CommentDto;
-import ru.practicum.shareit.item.dto.CommentRequestDto;
+
 import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.item.dto.ItemExtendedDto;
+import java.time.LocalDateTime;
+import java.util.Collection;
 
-import ru.practicum.shareit.markers.Constants;
-import ru.practicum.shareit.markers.Create;
-import ru.practicum.shareit.markers.Update;
+import static ru.practicum.shareit.markers.ConstantsUtil.USER_ID_HEADER;
 
-import javax.validation.Valid;
-import java.util.List;
 
 @RestController
 @RequestMapping("/items")
-@Slf4j
-@Validated
+@RequiredArgsConstructor
 public class ItemController {
     private final ItemService itemService;
 
-    public ItemController(ItemService itemService) {
-        this.itemService = itemService;
-    }
-
     @GetMapping
-    public List<ItemExtendedDto> getByOwnerId(
-            @RequestHeader(Constants.headerUserId) Long userId,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) Integer from,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) Integer size) {
-        log.info("Получен запрос GET /items " + userId);
-        return itemService.getByOwnerId(userId, PageRequest.of(from / size, size));
+    public Collection<ItemDto> findAllByOwner(@RequestHeader(USER_ID_HEADER) long userId,
+                                              @RequestParam(defaultValue = "0") Integer from,
+                                              @RequestParam(defaultValue = "10") Integer size) {
+        return itemService.findAllByOwner(userId, from, size);
     }
 
-    @GetMapping("/{id}")
-    public ItemExtendedDto getById(@RequestHeader(Constants.headerUserId) Long userId,
-                                   @PathVariable Long id) {
-        log.info("Получен запрос GET /items/id  запрос на вещь с id" + id);
-        return itemService.getById(userId, id);
+    @GetMapping(value = "/{id}")
+    public ItemDto findById(@PathVariable long id,
+                            @RequestHeader(USER_ID_HEADER) long userId) {
+        return itemService.findById(id, userId);
+    }
+
+    @GetMapping(value = "/search")
+    public Collection<ItemDto> search(@RequestParam(name = "text") String query,
+                                      @RequestParam(defaultValue = "0") Integer from,
+                                      @RequestParam(defaultValue = "10") Integer size) {
+        return itemService.search(query, from, size);
     }
 
     @PostMapping
-    public ItemDto add(@RequestHeader(Constants.headerUserId) Long userId,
-                       @Validated(Create.class) @RequestBody ItemDto itemDto) {
-        log.info("Получен запрос POST /items " + itemDto);
-        return itemService.add(userId, itemDto);
+    public ItemDto save(@RequestHeader(USER_ID_HEADER) long userId,
+                        @RequestBody ItemDto itemDto) {
+        return itemService.save(userId, itemDto);
     }
 
-    @PatchMapping("/{id}")
-    public ItemDto update(@RequestHeader(Constants.headerUserId) Long userId,
-                          @PathVariable Long id,
-                          @Validated(Update.class) @RequestBody ItemDto itemDto) {
-        log.info("Получен запрос PATCH /items/id " + "!Обновление вещи с id" + id + " на " + itemDto + " юзер с id" + userId);
+    @PostMapping(value = "/{itemId}/comment")
+    public CommentDto createComment(@PathVariable Long itemId,
+                                    @RequestBody CommentDto commentDto,
+                                    @RequestHeader(USER_ID_HEADER) Long userId) {
+        commentDto.setCreated(LocalDateTime.now());
+        return CommentMapper.toDto(itemService.createComment(commentDto, itemId, userId));
+    }
+
+    @PatchMapping(value = "/{id}")
+    public ItemDto update(@RequestHeader(USER_ID_HEADER) long userId,
+                          @PathVariable long id,
+                          @RequestBody ItemDto itemDto) {
         return itemService.update(userId, id, itemDto);
     }
 
-    @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
-        log.info("Получен запрос POST /items/id " + id);
-        itemService.delete(id);
-    }
-
-
-    @GetMapping("/search")
-    public List<ItemDto> search(
-            @RequestParam String text,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) Integer from,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) Integer size) {
-        log.info("Получен запрос PATCH /items/search " + text);
-        return itemService.search(text, PageRequest.of(from / size, size));
-    }
-
-    @PostMapping("{id}/comment")
-    public CommentDto addComment(@RequestHeader(Constants.headerUserId) long userId,
-                                 @PathVariable long id,
-                                 @Valid @RequestBody CommentRequestDto commentRequestDto) {
-        return itemService.addComment(userId, id, commentRequestDto);
+    @DeleteMapping(value = "/{id}")
+    public void delete(@RequestHeader(USER_ID_HEADER) long userId,
+                       @PathVariable long id) {
+        itemService.delete(userId, id);
     }
 }

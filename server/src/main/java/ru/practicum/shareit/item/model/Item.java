@@ -1,55 +1,55 @@
 package ru.practicum.shareit.item.model;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-import org.hibernate.annotations.OnDelete;
-import org.hibernate.annotations.OnDeleteAction;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.user.model.User;
 
-import javax.persistence.*;
-import java.util.Objects;
 
+import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.List;
+
+@Data
+@Builder(builderMethodName = "itemBuilder")
+@AllArgsConstructor
+@NoArgsConstructor
 @Entity
 @Table(name = "items")
-@FieldDefaults(level = AccessLevel.PRIVATE)
-@Getter
-@Setter
-@ToString
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class Item {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    Long id;
+    @Column(name = "item_id")
+    private Long id;
 
-    @Column(nullable = false)
-    String name;
+    @Column(name = "name")
+    private String name;
 
-    @Column(nullable = false)
-    String description;
+    @Column(name = "description")
+    private String description;
 
-    @Column(nullable = false)
-    Boolean available;
+    @Column(name = "is_available")
+    private Boolean available;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @OnDelete(action = OnDeleteAction.CASCADE)
-    @JoinColumn(name = "owner_id", referencedColumnName = "id", nullable = false)
-    User owner;
+    @ManyToOne
+    @JoinColumn(name = "owner_id")
+    private User owner;
 
     @Column(name = "request_id")
-    Long requestId;
+    private Long requestId;
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Item)) return false;
-        return id != null && id.equals(((Item) o).getId());
-    }
+    @Transient
+    private Booking lastBooking;
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(id, name, description, available, owner, requestId);
-    }
+    @Transient
+    private Booking nextBooking;
 
+    @Transient
+    private List<Booking> bookings;
+
+    @Transient
+    @Builder.Default
+    private List<Comment> comments = new ArrayList<>();
 }

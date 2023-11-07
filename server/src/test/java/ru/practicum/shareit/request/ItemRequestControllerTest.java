@@ -1,215 +1,140 @@
 package ru.practicum.shareit.request;
 
-import lombok.RequiredArgsConstructor;
-import org.junit.jupiter.api.Nested;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.annotation.DirtiesContext;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import ru.practicum.shareit.item.ItemController;
-import ru.practicum.shareit.item.dto.ItemDto;
-import ru.practicum.shareit.markers.Constants;
-
-import ru.practicum.shareit.request.dto.ItemRequestAddDto;
+import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.request.dto.ItemRequestDto;
-import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
-
-import ru.practicum.shareit.user.UserController;
-import ru.practicum.shareit.user.dto.UserDto;
+import ru.practicum.shareit.request.model.ItemRequest;
+import ru.practicum.shareit.user.model.User;
 
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@SpringBootTest
-@RequiredArgsConstructor(onConstructor_ = @Autowired)
-@DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_EACH_TEST_METHOD)
-public class ItemRequestControllerTest {
-    private final UserController userController;
-    private final ItemController itemController;
-    private final ItemRequestController itemRequestController;
+@ExtendWith(MockitoExtension.class)
+class ItemRequestControllerTest {
+    private final ObjectMapper mapper = new ObjectMapper();
+    @Mock
+    private ItemRequestService requestService;
+    @InjectMocks
+    private ItemRequestController requestController;
+    private MockMvc mockMvc;
+    private ItemRequest testRequest;
 
-    @Nested
-    class Add {
-        @Test
-        public void shouldAdd() {
-            UserDto userDto1 = UserDto.builder()
-                    .id(1L)
-                    .name("Test user 1")
-                    .email("tester1@ya.ru")
-                    .build();
-            userController.add(userDto1);
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(requestController).build();
 
-            ItemRequestAddDto itemRequestCreateDto = ItemRequestAddDto.builder()
-                    .description("description")
-                    .build();
-
-            ItemRequestDto itemRequestDto = itemRequestController.add(userDto1.getId(), itemRequestCreateDto);
-
-            assertEquals(1L, itemRequestDto.getId());
-            assertEquals(itemRequestCreateDto.getDescription(), itemRequestDto.getDescription());
-            assertNotNull(itemRequestDto.getCreated());
-        }
+        testRequest = ItemRequest
+                .builder()
+                .id(1L)
+                .description("Description")
+                .build();
     }
 
-    @Nested
-    class GetById {
-        @Test
-        public void shouldGetWithItems() {
-            UserDto userDto1 = UserDto.builder()
-                    .id(1L)
-                    .name("Test user 1")
-                    .email("tester1@ya.ru")
-                    .build();
-            userController.add(userDto1);
-
-            UserDto userDto2 = UserDto.builder()
-                    .id(2L)
-                    .name("Test user 2")
-                    .email("tester2@ya.ru")
-                    .build();
-            userController.add(userDto2);
-
-            ItemRequestAddDto itemRequestCreateDto = ItemRequestAddDto.builder()
-                    .description("description")
-                    .build();
-            ItemRequestDto itemRequestDto = itemRequestController.add(userDto1.getId(), itemRequestCreateDto);
-
-            ItemDto itemDto = ItemDto.builder()
-                    .id(1L)
-                    .name("Test item")
-                    .description("Test item description")
-                    .available(true)
-                    .ownerId(userDto2.getId())
-                    .requestId(itemRequestDto.getId())
-                    .build();
-            itemController.add(itemDto.getOwnerId(), itemDto);
-
-            ItemRequestExtendedDto itemRequestFromController = itemRequestController.getById(userDto1.getId(), itemRequestDto.getId());
-
-            assertEquals(1L, itemRequestFromController.getId());
-            assertEquals(itemRequestCreateDto.getDescription(), itemRequestFromController.getDescription());
-            assertNotNull(itemRequestFromController.getCreated());
-
-            assertNotNull(itemRequestFromController.getItems());
-            assertEquals(1, itemRequestFromController.getItems().size());
-            assertEquals(itemDto.getId(), itemRequestFromController.getItems().get(0).getId());
-            assertEquals(itemDto.getDescription(), itemRequestFromController.getItems().get(0).getDescription());
-            assertEquals(itemDto.getAvailable(), itemRequestFromController.getItems().get(0).getAvailable());
-            assertEquals(itemDto.getOwnerId(), itemRequestFromController.getItems().get(0).getOwnerId());
-            assertEquals(itemDto.getRequestId(), itemRequestFromController.getItems().get(0).getRequestId());
-        }
+    @Test
+    void shouldCreate() throws Exception {
+        ItemRequestDto itemRequestDto = ItemRequestMapper.toItemRequestDto(testRequest);
+        when(requestService.create(any(), any())).thenReturn(testRequest);
+        mockMvc.perform(post("/requests")
+                        .content(mapper.writeValueAsString(itemRequestDto))
+                        .header("X-Sharer-User-Id", 1)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(itemRequestDto.getId()))
+                .andExpect(jsonPath("$.description").value(itemRequestDto.getDescription()));
     }
 
-    @Nested
-    class GetByRequestorId {
-        @Test
-        public void shouldGetWithItems() {
-            UserDto userDto1 = UserDto.builder()
-                    .id(1L)
-                    .name("Test user 1")
-                    .email("tester1@ya.ru")
-                    .build();
-            userController.add(userDto1);
-
-            UserDto userDto2 = UserDto.builder()
-                    .id(2L)
-                    .name("Test user 2")
-                    .email("tester2@ya.ru")
-                    .build();
-            userController.add(userDto2);
-
-            ItemRequestAddDto itemRequestCreateDto = ItemRequestAddDto.builder()
-                    .description("description")
-                    .build();
-            ItemRequestDto itemRequestDto = itemRequestController.add(userDto1.getId(), itemRequestCreateDto);
-
-            ItemDto itemDto = ItemDto.builder()
-                    .id(1L)
-                    .name("Test item")
-                    .description("Test item description")
-                    .available(true)
-                    .ownerId(userDto2.getId())
-                    .requestId(itemRequestDto.getId())
-                    .build();
-            itemController.add(itemDto.getOwnerId(), itemDto);
-
-            List<ItemRequestExtendedDto> itemRequestsFromController = itemRequestController.getByRequestorId(userDto1.getId());
-
-            assertEquals(1, itemRequestsFromController.size());
-
-            ItemRequestExtendedDto itemRequestFromController = itemRequestsFromController.get(0);
-
-            assertEquals(1L, itemRequestFromController.getId());
-            assertEquals(itemRequestCreateDto.getDescription(), itemRequestFromController.getDescription());
-            assertNotNull(itemRequestFromController.getCreated());
-
-            assertNotNull(itemRequestFromController.getItems());
-            assertEquals(1, itemRequestFromController.getItems().size());
-            assertEquals(itemDto.getId(), itemRequestFromController.getItems().get(0).getId());
-            assertEquals(itemDto.getDescription(), itemRequestFromController.getItems().get(0).getDescription());
-            assertEquals(itemDto.getAvailable(), itemRequestFromController.getItems().get(0).getAvailable());
-            assertEquals(itemDto.getOwnerId(), itemRequestFromController.getItems().get(0).getOwnerId());
-            assertEquals(itemDto.getRequestId(), itemRequestFromController.getItems().get(0).getRequestId());
-        }
+    @Test
+    void shouldFindById() throws Exception {
+        testRequest = ItemRequest
+                .builder()
+                .id(1L)
+                .description("Description")
+                .requester(User
+                        .userBuilder()
+                        .id(1L)
+                        .name("User")
+                        .email("user@test.com")
+                        .build())
+                .items(List.of(Item
+                        .itemBuilder()
+                        .id(1L)
+                        .name("Name")
+                        .description("Description")
+                        .build()))
+                .build();
+        when(requestService.findById(any(), any())).thenReturn(testRequest);
+        mockMvc.perform(get("/requests/1")
+                        .header("X-Sharer-User-Id", 1)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(testRequest.getId()))
+                .andExpect(jsonPath("$.description").value(testRequest.getDescription()))
+                .andExpect(jsonPath("$.items[0].id").value("1"))
+                .andExpect(jsonPath("$.items[0].name").value("Name"))
+                .andExpect(jsonPath("$.items[0].description").value("Description"));
     }
 
-    @Nested
-    class GetAll {
-        @Test
-        public void shouldGetAllWhereNotOwner() {
-            UserDto userDto1 = UserDto.builder()
-                    .id(1L)
-                    .name("Test user 1")
-                    .email("tester1@ya.ru")
-                    .build();
-            userController.add(userDto1);
+    @Test
+    void shouldFindByUserId() throws Exception {
+        when(requestService.findByUserId(any())).thenReturn(List.of(testRequest));
+        mockMvc.perform(get("/requests")
+                        .header("X-Sharer-User-Id", 1)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(testRequest.getId()))
+                .andExpect(jsonPath("$[0].description").value(testRequest.getDescription()));
+    }
 
-            UserDto userDto2 = UserDto.builder()
-                    .id(2L)
-                    .name("Test user 2")
-                    .email("tester2@ya.ru")
-                    .build();
-            userController.add(userDto2);
-
-            ItemRequestAddDto itemRequestCreateDto = ItemRequestAddDto.builder()
-                    .description("description")
-                    .build();
-            ItemRequestDto itemRequestDto = itemRequestController.add(userDto1.getId(), itemRequestCreateDto);
-
-            ItemDto itemDto = ItemDto.builder()
-                    .id(1L)
-                    .name("Test item")
-                    .description("Test item description")
-                    .available(true)
-                    .ownerId(userDto2.getId())
-                    .requestId(itemRequestDto.getId())
-                    .build();
-            itemController.add(itemDto.getOwnerId(), itemDto);
-
-            List<ItemRequestExtendedDto> itemRequestsFromController = itemRequestController.getAll(
-                    userDto2.getId(),
-                    Integer.parseInt(Constants.PAGE_DEFAULT_FROM),
-                    Integer.parseInt(Constants.PAGE_DEFAULT_SIZE));
-
-            assertEquals(1, itemRequestsFromController.size());
-
-            ItemRequestExtendedDto itemRequestFromController = itemRequestsFromController.get(0);
-
-            assertEquals(1L, itemRequestFromController.getId());
-            assertEquals(itemRequestCreateDto.getDescription(), itemRequestFromController.getDescription());
-            assertNotNull(itemRequestFromController.getCreated());
-
-            assertNotNull(itemRequestFromController.getItems());
-            assertEquals(1, itemRequestFromController.getItems().size());
-            assertEquals(itemDto.getId(), itemRequestFromController.getItems().get(0).getId());
-            assertEquals(itemDto.getDescription(), itemRequestFromController.getItems().get(0).getDescription());
-            assertEquals(itemDto.getAvailable(), itemRequestFromController.getItems().get(0).getAvailable());
-            assertEquals(itemDto.getOwnerId(), itemRequestFromController.getItems().get(0).getOwnerId());
-            assertEquals(itemDto.getRequestId(), itemRequestFromController.getItems().get(0).getRequestId());
-        }
+    @Test
+    void shouldFindAll() throws Exception {
+        testRequest = ItemRequest
+                .builder()
+                .id(1L)
+                .description("Description")
+                .requester(User
+                        .userBuilder()
+                        .id(1L)
+                        .name("User")
+                        .email("user@test.com")
+                        .build())
+                .items(List.of(Item
+                        .itemBuilder()
+                        .id(1L)
+                        .name("Name")
+                        .description("Description")
+                        .build()))
+                .build();
+        when(requestService.findAll(any(), any(), any())).thenReturn(List.of(testRequest));
+        mockMvc.perform(get("/requests/all")
+                        .header("X-Sharer-User-Id", 1)
+                        .characterEncoding(StandardCharsets.UTF_8)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(testRequest.getId()))
+                .andExpect(jsonPath("$[0].description").value(testRequest.getDescription()));
     }
 }

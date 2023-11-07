@@ -1,59 +1,54 @@
 package ru.practicum.shareit.request;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.shareit.markers.Constants;
-import ru.practicum.shareit.request.dto.ItemRequestAddDto;
 import ru.practicum.shareit.request.dto.ItemRequestDto;
-import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
+import ru.practicum.shareit.request.model.ItemRequest;
 
 
-import javax.validation.Valid;
-import javax.validation.constraints.PositiveOrZero;
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static ru.practicum.shareit.markers.ConstantsUtil.USER_ID_HEADER;
+
 
 @RestController
 @RequestMapping(path = "/requests")
-@Slf4j
+@RequiredArgsConstructor
 @Validated
 public class ItemRequestController {
     private final ItemRequestService itemRequestService;
 
-    public ItemRequestController(ItemRequestService itemRequestService) {
-        this.itemRequestService = itemRequestService;
-    }
-
     @PostMapping
-    public ItemRequestDto add(
-            @RequestHeader(Constants.headerUserId) Long userId,
-            @Valid @RequestBody ItemRequestAddDto itemRequestCreateDto) {
-        log.info("Получен запрос POST  " + userId);
-        return itemRequestService.add(userId, itemRequestCreateDto);
+    public ItemRequestDto create(@RequestBody ItemRequestDto itemRequestDto,
+                                 @RequestHeader(USER_ID_HEADER) Long userId) {
+        ItemRequest request = ItemRequestMapper.toItemRequest(itemRequestDto);
+
+        return ItemRequestMapper.toItemRequestDto(itemRequestService.create(request, userId));
     }
 
-    @GetMapping("/{id}")
-    public ItemRequestExtendedDto getById(
-            @RequestHeader(Constants.headerUserId) Long userId,
-            @PathVariable Long id) {
-        log.info("Получен запрос GET вещи с id: " + id + "пользователя с id: " + userId);
-        return itemRequestService.getById(userId, id);
+    @GetMapping(value = "/{requestId}")
+    public ItemRequestDto findById(@PathVariable Long requestId,
+                                   @RequestHeader(USER_ID_HEADER) Long userId) {
+        return ItemRequestMapper.toItemRequestDto(itemRequestService.findById(requestId, userId));
     }
 
     @GetMapping
-    public List<ItemRequestExtendedDto> getByRequestorId(
-            @RequestHeader(Constants.headerUserId) Long userId) {
-        log.info("Получен запрос GET в соответсвии с RequestId");
-        return itemRequestService.getByRequestorId(userId);
+    public List<ItemRequestDto> findByUserId(@RequestHeader(USER_ID_HEADER) Long userId) {
+        return itemRequestService.findByUserId(userId)
+                .stream()
+                .map(ItemRequestMapper::toItemRequestDto)
+                .collect(Collectors.toUnmodifiableList());
     }
 
-    @GetMapping("/all")
-    public List<ItemRequestExtendedDto> getAll(
-            @RequestHeader(Constants.headerUserId) Long userId,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) Integer size) {
-        log.info("Получен запрос GET всех вещей пользователя с id: " + userId);
-        return itemRequestService.getAll(userId, PageRequest.of(from / size, size));
+    @GetMapping(value = "/all")
+    public List<ItemRequestDto> findAll(@RequestHeader(USER_ID_HEADER) Long userId,
+                                        @RequestParam(defaultValue = "0") Integer from,
+                                        @RequestParam(defaultValue = "10") Integer size) {
+        return itemRequestService.findAll(userId, from, size)
+                .stream()
+                .map(ItemRequestMapper::toItemRequestDto)
+                .collect(Collectors.toUnmodifiableList());
     }
 }

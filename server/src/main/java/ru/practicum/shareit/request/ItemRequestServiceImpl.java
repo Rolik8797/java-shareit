@@ -1,120 +1,87 @@
 package ru.practicum.shareit.request;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.practicum.shareit.exception.NotFoundException;
-import ru.practicum.shareit.item.ItemMapper;
+import ru.practicum.shareit.exception.CustomPageRequest;
+import ru.practicum.shareit.exception.ItemRequestNotFoundException;
+import ru.practicum.shareit.exception.UserNotFoundException;
 import ru.practicum.shareit.item.ItemRepository;
-import ru.practicum.shareit.item.dto.ItemDto;
-
-import ru.practicum.shareit.request.dto.ItemRequestAddDto;
-import ru.practicum.shareit.request.dto.ItemRequestDto;
-import ru.practicum.shareit.request.dto.ItemRequestExtendedDto;
-
+import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.request.model.ItemRequest;
+import ru.practicum.shareit.user.UserRepository;
 
-import ru.practicum.shareit.user.UserService;
-import ru.practicum.shareit.user.model.User;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
-@Slf4j
-@Transactional(readOnly = true)
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class ItemRequestServiceImpl implements ItemRequestService {
-    private final UserService userService;
-    private final ItemRequestRepository itemRequestRepository;
-    private final ItemRequestMapper itemRequestMapper;
-    private final ItemMapper itemMapper;
+    private final ItemRequestRepository requestRepository;
     private final ItemRepository itemRepository;
+    private final UserRepository userRepository;
 
-    @Override
     @Transactional
-    public ItemRequestDto add(Long userId, ItemRequestAddDto itemRequestCreateDto) {
-        log.info("Создание запроса вещи {} пользователем с id {}.", itemRequestCreateDto, userId);
-
-        User user = userService.getUserById(userId);
-        ItemRequest itemRequest = itemRequestMapper.toItemRequest(itemRequestCreateDto, user, LocalDateTime.now());
-
-        return itemRequestMapper.toItemRequestDto(itemRequestRepository.save(itemRequest));
-    }
-
     @Override
-    public ItemRequestExtendedDto getById(Long userId, Long id) {
-        log.info("Вывод запроса вещи с id {} пользователем с id {}.", id, userId);
-
-        userService.getUserById(userId);
-        ItemRequest itemRequest = itemRequestRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("Запроса вещи с таким id не существует."));
-
-        List<ItemDto> items = itemRepository.findByRequestId(itemRequest.getId())
-                .stream().map(itemMapper::toItemDto)
-                .collect(Collectors.toList());
-
-        return itemRequestMapper.toItemRequestExtendedDto(itemRequest, items);
-    }
-
-    @Override
-    public List<ItemRequestExtendedDto> getByRequestorId(Long userId) {
-        log.info("Вывод всех запросов вещей пользователем с id {}.", userId);
-
-        userService.getUserById(userId);
-        List<ItemRequest> itemRequests = itemRequestRepository.findByRequestorId_IdOrderByCreatedAsc(userId);
-
-        List<Long> itemRequestIds = itemRequests.stream()
-                .map(ItemRequest::getId)
-                .collect(Collectors.toList());
-
-        Map<Long, List<ItemDto>> itemDtosForRequestId = itemRepository.findByRequestIdIn(itemRequestIds)
-                .stream()
-                .map(itemMapper::toItemDto)
-                .collect(Collectors.groupingBy(ItemDto::getRequestId));
-
-        List<ItemRequestExtendedDto> result = itemRequests
-                .stream()
-                .filter(itemRequest -> itemRequest.getRequestorId().getId().equals(userId))
-                .map((itemRequest) -> itemRequestMapper.toItemRequestExtendedDto(
-                        itemRequest,
-                        null)
-                )
-                .collect(Collectors.toList());
-
-        for (ItemRequestExtendedDto itemRequestExtendedDto : result) {
-            if (itemDtosForRequestId.get(itemRequestExtendedDto.getId()) != null && !itemDtosForRequestId.get(itemRequestExtendedDto.getId()).isEmpty()) {
-                itemRequestExtendedDto.setItems(itemDtosForRequestId.get(itemRequestExtendedDto.getId()));
-            } else {
-                itemRequestExtendedDto.setItems(new ArrayList<>());
-            }
+    public ItemRequest create(ItemRequest itemRequest, Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new UserNotFoundException(userId);
         }
-        return result;
+
+        ItemRequest forSave = ItemRequest
+                .builder()
+                .description(itemRequest.getDescription())
+                .requester(userRepository.getReferenceById(userId))
+                .created(LocalDateTime.now())
+                .build();
+
+        return requestRepository.save(forSave);
     }
 
     @Override
-    public List<ItemRequestExtendedDto> getAll(Long userId, Pageable pageable) {
-        log.info("Вывод всех запросов вещей постранично {}.", pageable);
+    public List<ItemRequest> findByUserId(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new UserNotFoundException(userId);
+        }
 
-        userService.getUserById(userId);
-        Page<ItemRequest> itemRequests = itemRequestRepository.findByRequestorId_IdNot(userId, pageable);
-        List<Long> itemRequestIds = itemRequests.stream().map(ItemRequest::getId).collect(Collectors.toList());
-        Map<Long, List<ItemDto>> itemDtosForRequestId = itemRepository.findByRequestIdIn(itemRequestIds)
-                .stream()
-                .map(itemMapper::toItemDto)
-                .collect(Collectors.groupingBy(ItemDto::getRequestId));
+        List<ItemRequest> requests = requestRepository.findAllByRequesterIdOrderByCreatedDesc(userId);
+        setAdditionalData(requests);
 
-        return itemRequests.stream()
-                .map((itemRequest) -> itemRequestMapper.toItemRequestExtendedDto(
-                        itemRequest,
-                        itemDtosForRequestId.get(itemRequest.getId())))
-                .collect(Collectors.toList());
+        return requests;
     }
 
+    @Override
+    public ItemRequest findById(Long requestId, Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new UserNotFoundException(userId);
+        }
+        ItemRequest request = requestRepository.findById(requestId).orElseThrow(() -> new ItemRequestNotFoundException(requestId));
+        request.setItems(itemRepository.findByRequestIdIn(List.of(request.getId())));
+
+        return request;
+    }
+
+    @Override
+    public List<ItemRequest> findAll(Long userId, Integer from, Integer size) {
+        PageRequest pageRequest = CustomPageRequest.of(from, size);
+        List<ItemRequest> requests = requestRepository.findAllByRequesterIdNotOrderByCreatedDesc(userId, pageRequest);
+        setAdditionalData(requests);
+
+        return requests;
+    }
+
+    private void setAdditionalData(List<ItemRequest> requests) {
+        Map<Long, List<Item>> items = itemRepository.findByRequestIdIn(requests
+                        .stream()
+                        .map(ItemRequest::getId).collect(Collectors.toList()))
+                .stream()
+                .collect(Collectors.groupingBy(Item::getRequestId, Collectors.toList()));
+
+        requests.forEach(r -> r.setItems(items.get(r.getId())));
+    }
 }

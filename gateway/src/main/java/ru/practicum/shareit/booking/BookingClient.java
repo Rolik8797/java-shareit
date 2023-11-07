@@ -7,8 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.DefaultUriBuilderFactory;
+
 import ru.practicum.shareit.client.BaseClient;
-import ru.practicum.shareit.constants.Constants;
 
 import java.util.Map;
 
@@ -17,24 +17,30 @@ public class BookingClient extends BaseClient {
     private static final String API_PREFIX = "/bookings";
 
     @Autowired
-    public BookingClient(@Value(Constants.headerServerUrl) String serverUrl, RestTemplateBuilder builder) {
-        super(
-                builder
-                        .uriTemplateHandler(new DefaultUriBuilderFactory(serverUrl + API_PREFIX))
-                        .requestFactory(HttpComponentsClientHttpRequestFactory::new)
-                        .build()
+    public BookingClient(@Value("${shareit-server.url}") String serverUrl, RestTemplateBuilder builder) {
+        super(builder
+                .uriTemplateHandler(new DefaultUriBuilderFactory(serverUrl + API_PREFIX))
+                .requestFactory(HttpComponentsClientHttpRequestFactory::new)
+                .build()
         );
     }
 
-    public ResponseEntity<Object> add(long userId, BookingRequestDto bookingRequestDto) {
-        return post("", userId, bookingRequestDto);
+    public ResponseEntity<Object> create(BookingCreateRequestDto bookingDto, Long userId) {
+        return post("/", userId, bookingDto);
     }
 
-    public ResponseEntity<Object> getById(long userId, Long id) {
-        return get("/" + id, userId);
+    public ResponseEntity<Object> approve(Long bookingId, boolean approved, Long userId) {
+        Map<String, Object> parameters = Map.of(
+                "approved", approved
+        );
+        return patch("/" + bookingId + "?approved={approved}", userId, parameters);
     }
 
-    public ResponseEntity<Object> getAllByBookerId(long userId, BookingState state, Integer from, Integer size) {
+    public ResponseEntity<Object> findById(long userId, Long bookingId) {
+        return get("/" + bookingId, userId);
+    }
+
+    public ResponseEntity<Object> findByBookerId(long userId, BookingState state, Integer from, Integer size) {
         Map<String, Object> parameters = Map.of(
                 "state", state.name(),
                 "from", from,
@@ -43,20 +49,12 @@ public class BookingClient extends BaseClient {
         return get("?state={state}&from={from}&size={size}", userId, parameters);
     }
 
-    public ResponseEntity<Object> getAllByOwnerId(long userId, BookingState stateEnum, Integer from, Integer size) {
+    public ResponseEntity<Object> findByOwnerId(long userId, BookingState state, Integer from, Integer size) {
         Map<String, Object> parameters = Map.of(
-                "state", stateEnum.name(),
+                "state", state.name(),
                 "from", from,
                 "size", size
         );
         return get("/owner?state={state}&from={from}&size={size}", userId, parameters);
-    }
-
-    public ResponseEntity<Object> update(long userId, long id, Boolean approved) {
-        Map<String, Object> parameters = Map.of(
-                "approved", approved
-        );
-
-        return patch("/" + id + "?approved={approved}", userId, parameters);
     }
 }

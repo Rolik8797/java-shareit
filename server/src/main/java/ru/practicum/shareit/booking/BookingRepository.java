@@ -1,51 +1,88 @@
 package ru.practicum.shareit.booking;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import org.springframework.data.jpa.repository.Query;
 import ru.practicum.shareit.booking.model.Booking;
-import ru.practicum.shareit.booking.model.Status;
+import ru.practicum.shareit.booking.model.BookingStatus;
+import ru.practicum.shareit.item.model.Item;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+
 
 public interface BookingRepository extends JpaRepository<Booking, Long> {
-    Page<Booking> findByBookerIdOrderByStartDesc(Long booker, Pageable pageable);
+    List<Booking> findByItemId(Long itemId);
 
-    Page<Booking> findByBookerIdAndStartBeforeAndEndAfterOrderByStartDesc(Long userId, LocalDateTime start,
-                                                                          LocalDateTime end, Pageable pageable);
+    List<Booking> findByItemInAndStatus(List<Item> item, BookingStatus status);
 
-    Page<Booking> findByBookerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(Long userId, LocalDateTime start,
-                                                                            Status status, Pageable pageable);
+    @Query("select b " +
+            " from Booking b " +
+            " join fetch b.item i " +
+            "where b.id = :id " +
+            "  and i.owner.id = :ownerId")
+    Optional<Booking> findByIdAndOwnerId(Long id, Long ownerId);
 
-    Page<Booking> findByBookerIdAndStartAfterOrderByStartDesc(Long userId, LocalDateTime start, Pageable pageable);
+    List<Booking> findByBookerId(Long bookerId, Pageable pageable);
 
-    Page<Booking> findByBookerIdAndStatusEqualsOrderByStartDesc(Long userId, Status status, Pageable pageable);
+    @Query("select b " +
+            " from Booking b " +
+            "where b.start <= CURRENT_TIMESTAMP " +
+            "  and b.end >= CURRENT_TIMESTAMP " +
+            "  and b.booker.id = :bookerId ")
+    List<Booking> findByBookerIdCurrent(Long bookerId, Pageable pageable);
 
-    Page<Booking> findByItemOwnerIdOrderByStartDesc(Long booker, Pageable pageable);
+    @Query("select b " +
+            " from Booking b " +
+            "where b.end < CURRENT_TIMESTAMP " +
+            "  and b.booker.id = :bookerId ")
+    List<Booking> findByBookerIdPast(Long bookerId, Pageable pageable);
 
-    Page<Booking> findByItemOwnerIdAndStartBeforeAndEndAfterOrderByStartDesc(Long userId, LocalDateTime start,
-                                                                             LocalDateTime end, Pageable pageable);
+    @Query("select b " +
+            " from Booking b " +
+            "where b.start >= CURRENT_TIMESTAMP " +
+            "  and b.booker.id = :bookerId ")
+    List<Booking> findByBookerIdFuture(Long bookerId, Pageable pageable);
 
-    Page<Booking> findByItemOwnerIdAndEndBeforeAndStatusEqualsOrderByStartDesc(Long userId, LocalDateTime start,
-                                                                               Status status, Pageable pageable);
+    @Query("select b " +
+            " from Booking b " +
+            "where b.booker.id = :bookerId " +
+            "  and b.status = :status")
+    List<Booking> findByBookerIdAndStatus(Long bookerId, BookingStatus status, Pageable pageable);
 
-    Page<Booking> findByItemOwnerIdAndStartAfterOrderByStartDesc(Long userId, LocalDateTime start, Pageable pageable);
+    @Query("select b " +
+            " from Booking b " +
+            " join fetch b.item i " +
+            "where i.owner.id = :ownerId ")
+    List<Booking> findByOwnerId(Long ownerId, Pageable pageable);
 
-    Page<Booking> findByItemOwnerIdAndStatusEqualsOrderByStartDesc(Long userId, Status status, Pageable pageable);
+    @Query("select b " +
+            " from Booking b " +
+            " join fetch b.item i " +
+            "where i.owner.id = :ownerId " +
+            "  and b.start <= CURRENT_TIMESTAMP " +
+            "  and b.end >= CURRENT_TIMESTAMP ")
+    List<Booking> findByOwnerIdCurrent(Long ownerId, Pageable pageable);
 
-    List<Booking> findByItemIdAndStartBeforeAndStatusEqualsOrderByStartDesc(Long userId, LocalDateTime start, Status status);
+    @Query("select b " +
+            " from Booking b " +
+            " join fetch b.item i " +
+            "where i.owner.id = :ownerId " +
+            "  and b.end < CURRENT_TIMESTAMP ")
+    List<Booking> findByOwnerIdPast(Long ownerId, Pageable pageable);
 
-    List<Booking> findByItemIdAndStartAfterAndStatusEqualsOrderByStartAsc(Long userId, LocalDateTime start, Status status);
+    @Query("select b " +
+            " from Booking b " +
+            " join fetch b.item i " +
+            "where i.owner.id = :ownerId " +
+            "  and b.start >= CURRENT_TIMESTAMP ")
+    List<Booking> findByOwnerIdFuture(Long ownerId, Pageable pageable);
 
-    List<Booking> findByItemIdAndStartBeforeAndEndAfterAndStatusEqualsOrderByStartAsc(Long userId, LocalDateTime start, LocalDateTime end, Status status);
-
-    List<Booking> findByItemIdAndBookerIdAndEndIsBeforeAndStatusEquals(Long id, Long userId, LocalDateTime end, Status status);
-
-    List<Booking> findByItemIdIn(List<Long> itemIds);
-
-    List<Booking> findByItemId(Long id);
-
-    List<Booking> findByItemIdAndStartAfterAndEndBeforeAndStatusEqualsOrderByStartAsc(Long id, LocalDateTime start, LocalDateTime end, Status status);
+    @Query("select b " +
+            " from Booking b " +
+            " join fetch b.item i " +
+            "where i.owner.id = :ownerId " +
+            "  and b.status = :status ")
+    List<Booking> findByOwnerIdAndStatus(Long ownerId, BookingStatus status, Pageable pageable);
 }

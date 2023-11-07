@@ -1,13 +1,15 @@
 package ru.practicum.shareit.exception;
 
-import lombok.Getter;
+import lombok.Builder;
+import lombok.Value;
 
-@Getter
+import java.time.LocalDateTime;
+
+@Value
+@Builder
 public class ErrorResponse {
-    private final String error;
-
-    public ErrorResponse(String error) {
-        this.error = error;
-    }
-
+    @Builder.Default
+    LocalDateTime timestamp = LocalDateTime.now();
+    int status;
+    String error;
 }

@@ -1,73 +1,81 @@
 package ru.practicum.shareit.booking;
 
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.shareit.booking.dto.BookingRequestDto;
-import ru.practicum.shareit.booking.dto.BookingResponseDto;
+import ru.practicum.shareit.booking.dto.BookingCreateRequestDto;
+import ru.practicum.shareit.booking.dto.BookingDto;
 
-import ru.practicum.shareit.booking.model.State;
-import ru.practicum.shareit.markers.Constants;
+import ru.practicum.shareit.booking.model.Booking;
+import ru.practicum.shareit.booking.model.BookingStatus;
+import ru.practicum.shareit.booking.service.BookingService;
 
-import javax.validation.Valid;
-import javax.validation.constraints.PositiveOrZero;
+
 import java.util.List;
+import java.util.stream.Collectors;
+
+import static ru.practicum.shareit.markers.ConstantsUtil.USER_ID_HEADER;
+
 
 @RestController
 @RequestMapping(path = "/bookings")
-@Slf4j
+@RequiredArgsConstructor
 @Validated
 public class BookingController {
     private final BookingService bookingService;
 
-    public BookingController(BookingService bookingService) {
-        this.bookingService = bookingService;
+    @PostMapping
+    public BookingDto create(
+            @RequestBody BookingCreateRequestDto requestDto,
+            @RequestHeader(USER_ID_HEADER) Long userId) {
+        Booking booking = Booking
+                .bookingBuilder()
+                .start(requestDto.getStart())
+                .end(requestDto.getEnd())
+                .status(BookingStatus.WAITING)
+                .build();
+
+        return BookingMapper.toBookingDto(bookingService.create(booking, requestDto.getItemId(), userId));
     }
 
-    @GetMapping("/{id}")
-    public BookingResponseDto getById(@RequestHeader(Constants.headerUserId) Long userId,
-                                      @PathVariable Long id) {
-        log.info("Получен запрос GET /bookings/id  запрос на вещь с id" + id);
-        return bookingService.getById(userId, id);
+    @PatchMapping(value = "/{bookingId}")
+    public BookingDto approve(
+            @RequestHeader(USER_ID_HEADER) Long ownerId,
+            @PathVariable Long bookingId,
+            @RequestParam boolean approved) {
+        return BookingMapper.toBookingDto(bookingService.approve(bookingId, ownerId, approved));
+    }
+
+    @GetMapping(value = "/{bookingId}")
+    public BookingDto findById(
+            @RequestHeader(USER_ID_HEADER) Long userId,
+            @PathVariable Long bookingId) {
+        return BookingMapper.toBookingDto(bookingService.findById(bookingId, userId));
     }
 
     @GetMapping
-    public List<BookingResponseDto> getAllByBookerId(
-            @RequestHeader(Constants.headerUserId) Long userId,
-            @RequestParam(defaultValue = "ALL") String state,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) Integer size) {
-        State stateEnum = State.stringToState(state).orElseThrow(
-                () -> new IllegalArgumentException("Unknown state: " + state));
-        log.info("Получен запрос всех вещей бронирующего GET /bookings " + userId);
-        return bookingService.getAllByBookerId(userId, stateEnum, PageRequest.of(from / size, size));
+    public List<BookingDto> findByBookerId(
+            @RequestHeader(USER_ID_HEADER) Long userId,
+            @RequestParam(defaultValue = "ALL") BookingService.BookingState state,
+            @RequestParam(defaultValue = "0") Integer from,
+            @RequestParam(defaultValue = "10") Integer size) {
+        return bookingService
+                .findByBookerId(userId, state, from, size)
+                .stream()
+                .map(BookingMapper::toBookingDto)
+                .collect(Collectors.toUnmodifiableList());
     }
 
-    @GetMapping("/owner")
-    public List<BookingResponseDto> getAllByOwnerId(
-            @RequestHeader(Constants.headerUserId) Long userId,
-            @RequestParam(defaultValue = "ALL") String state,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_FROM) @PositiveOrZero Integer from,
-            @RequestParam(defaultValue = Constants.PAGE_DEFAULT_SIZE) Integer size) {
-        State stateEnum = State.stringToState(state).orElseThrow(
-                () -> new IllegalArgumentException("Unknown state: " + state));
-        log.info("Получен запрос всех вещей владельца GET /bookings/owner " + userId);
-        return bookingService.getAllByOwnerId(userId, stateEnum, PageRequest.of(from / size, size));
-    }
-
-    @PostMapping
-    public BookingResponseDto add(@RequestHeader(Constants.headerUserId) Long userId,
-                                  @Valid @RequestBody BookingRequestDto bookingRequestDto) {
-        log.info("Получен запрос POST /bookings " + userId);
-        return bookingService.add(userId, bookingRequestDto);
-    }
-
-    @PatchMapping("/{id}")
-    public BookingResponseDto update(@RequestHeader(Constants.headerUserId) Long userId,
-                                     @PathVariable Long id,
-                                     @RequestParam() Boolean approved) {
-        log.info("Получен запрос PATCH /bookings/id " + " ! статус брони вещи с id" + id + ": забронировано=" + approved + " юзер с id" + userId);
-        return bookingService.update(userId, id, approved);
+    @GetMapping(value = "/owner")
+    public List<BookingDto> findByOwnerId(
+            @RequestHeader(USER_ID_HEADER) Long ownerId,
+            @RequestParam(defaultValue = "ALL") BookingService.BookingState state,
+            @RequestParam(defaultValue = "0") Integer from,
+            @RequestParam(defaultValue = "10") Integer size) {
+        return bookingService
+                .findByOwnerId(ownerId, state, from, size)
+                .stream()
+                .map(BookingMapper::toBookingDto)
+                .collect(Collectors.toUnmodifiableList());
     }
 }
